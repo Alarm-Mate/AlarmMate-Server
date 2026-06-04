@@ -24,6 +24,15 @@ export class MailService {
     });
   }
 
+  // 회원가입 이메일 인증 6자리 코드
+  async sendVerificationCode(to: string, code: string): Promise<void> {
+    await this.send({
+      to,
+      subject: 'AlarmMate 이메일 인증 코드',
+      text: `이메일 인증 코드는 [${code}] 입니다.\n앱에서 이 코드를 입력해 회원가입을 완료하세요. (10분간 유효)`,
+    });
+  }
+
   // 가입 축하 메일
   async sendWelcomeEmail(to: string, nickname: string): Promise<void> {
     await this.send({

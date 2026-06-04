@@ -6,6 +6,7 @@ import {
   expectSuccess,
   registerUser,
   request,
+  seedVerifiedEmail,
   server,
 } from './http';
 
@@ -28,6 +29,7 @@ describe('auth', () => {
   });
 
   it('register: success returns tokens and user', async () => {
+    await seedVerifiedEmail(h.app, 'a@b.com');
     const res = await request(server(h.app))
       .post('/auth/register')
       .send({ email: 'a@b.com', nickname: 'alice', password: 'password123' });
@@ -35,6 +37,36 @@ describe('auth', () => {
     const data = expectSuccess(res.body as ApiBody<AuthTokens>);
     expect(data.user.nickname).toBe('alice');
     expect(typeof data.refreshToken).toBe('string');
+  });
+
+  it('register: without email verification -> EMAIL_NOT_VERIFIED 400', async () => {
+    const res = await request(server(h.app))
+      .post('/auth/register')
+      .send({ email: 'unverified@b.com', nickname: 'unv', password: 'password123' });
+    expect(res.status).toBe(400);
+    expect(expectError(res.body as ApiBody<unknown>).code).toBe('EMAIL_NOT_VERIFIED');
+  });
+
+  it('verify-email: wrong code -> INVALID_VERIFICATION_CODE 400', async () => {
+    await request(server(h.app)).post('/auth/request-verification').send({ email: 'v@b.com' });
+    const res = await request(server(h.app))
+      .post('/auth/verify-email')
+      .send({ email: 'v@b.com', code: '000000' });
+    expect(res.status).toBe(400);
+    expect(expectError(res.body as ApiBody<unknown>).code).toBe('INVALID_VERIFICATION_CODE');
+  });
+
+  it('verify-email: correct code then register succeeds', async () => {
+    await request(server(h.app)).post('/auth/request-verification').send({ email: 'v2@b.com' });
+    const rec = await h.prisma.emailVerification.findFirst({ where: { email: 'v2@b.com' } });
+    const verify = await request(server(h.app))
+      .post('/auth/verify-email')
+      .send({ email: 'v2@b.com', code: rec!.code });
+    expect(verify.status).toBe(200);
+    const reg = await request(server(h.app))
+      .post('/auth/register')
+      .send({ email: 'v2@b.com', nickname: 'v2u', password: 'password123' });
+    expect(reg.status).toBe(201);
   });
 
   it('register: duplicate email -> EMAIL_ALREADY_EXISTS 409', async () => {

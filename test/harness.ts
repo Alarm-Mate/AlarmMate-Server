@@ -50,7 +50,7 @@ export async function createHarness(): Promise<Harness> {
 
 export async function resetDb(prisma: PrismaService): Promise<void> {
   await prisma.$executeRawUnsafe(
-    'TRUNCATE TABLE "Notification", "WakeRecord", "GroupInvitation", "GroupMember", "Group", "Alarm", "Follow", "RefreshToken", "PasswordResetToken", "Sound", "User" RESTART IDENTITY CASCADE',
+    'TRUNCATE TABLE "Notification", "WakeRecord", "GroupInvitation", "GroupMember", "Group", "Alarm", "Follow", "RefreshToken", "PasswordResetToken", "EmailVerification", "Sound", "User" RESTART IDENTITY CASCADE',
   );
 }
 

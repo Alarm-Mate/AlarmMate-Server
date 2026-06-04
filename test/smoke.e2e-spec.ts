@@ -1,5 +1,5 @@
 import { Harness, createHarness, resetDb, closeHarness } from './harness';
-import { ApiBody, AuthTokens, expectSuccess, request, server } from './http';
+import { ApiBody, AuthTokens, expectSuccess, request, seedVerifiedEmail, server } from './http';
 
 describe('smoke', () => {
   let h: Harness;
@@ -17,6 +17,7 @@ describe('smoke', () => {
   });
 
   it('registers a user and wraps the success response', async () => {
+    await seedVerifiedEmail(h.app, 'smoke@example.com');
     const res = await request(server(h.app))
       .post('/auth/register')
       .send({

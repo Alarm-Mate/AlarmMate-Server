@@ -18,12 +18,28 @@ import {
   LogoutDto,
   RefreshDto,
   RegisterDto,
+  RequestVerificationDto,
   ResetPasswordDto,
+  VerifyEmailDto,
 } from './dto/auth.dto';
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
+
+  @Public()
+  @Post('request-verification')
+  @HttpCode(HttpStatus.OK)
+  requestVerification(@Body() dto: RequestVerificationDto) {
+    return this.authService.requestEmailVerification(dto.email);
+  }
+
+  @Public()
+  @Post('verify-email')
+  @HttpCode(HttpStatus.OK)
+  verifyEmail(@Body() dto: VerifyEmailDto) {
+    return this.authService.verifyEmailCode(dto.email, dto.code);
+  }
 
   @Public()
   @Post('register')

@@ -60,6 +60,15 @@ export class AuthService {
       throw new AppException(ErrorCode.NICKNAME_ALREADY_EXISTS);
     }
 
+    // 이메일 인증 완료 여부 확인 (request-verification → verify-email 선행 필요)
+    const verified = await this.prisma.emailVerification.findFirst({
+      where: { email: dto.email, verified: true, expiresAt: { gt: new Date() } },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (!verified) {
+      throw new AppException(ErrorCode.EMAIL_NOT_VERIFIED);
+    }
+
     const hashed = await bcrypt.hash(dto.password, 10);
     const user = await this.prisma.user.create({
       data: {
@@ -69,6 +78,7 @@ export class AuthService {
         ...(dto.birthDate !== undefined ? { birthDate: dto.birthDate } : {}),
       },
     });
+    await this.prisma.emailVerification.deleteMany({ where: { email: dto.email } });
 
     const tokens = await this.issueAndStore(user.id, user.email);
     // 가입 축하 메일(실패 무관, fire-and-forget)
@@ -77,6 +87,37 @@ export class AuthService {
       ...tokens,
       user: { id: user.id, email: user.email, nickname: user.nickname },
     };
+  }
+
+  // 회원가입 이메일 인증 코드 발송 (가입 전, 이메일 기준)
+  async requestEmailVerification(email: string): Promise<{ requested: boolean }> {
+    const existing = await this.prisma.user.findUnique({ where: { email } });
+    if (existing) {
+      throw new AppException(ErrorCode.EMAIL_ALREADY_EXISTS);
+    }
+    await this.prisma.emailVerification.deleteMany({ where: { email } });
+    const code = String(randomInt(100000, 1000000));
+    await this.prisma.emailVerification.create({
+      data: { email, code, expiresAt: new Date(Date.now() + RESET_TTL_MS) },
+    });
+    await this.mailService.sendVerificationCode(email, code);
+    return { requested: true };
+  }
+
+  // 코드 확인 → 인증 완료 표시
+  async verifyEmailCode(email: string, code: string): Promise<{ verified: boolean }> {
+    const record = await this.prisma.emailVerification.findFirst({
+      where: { email, code, expiresAt: { gt: new Date() } },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (!record) {
+      throw new AppException(ErrorCode.INVALID_VERIFICATION_CODE);
+    }
+    await this.prisma.emailVerification.update({
+      where: { id: record.id },
+      data: { verified: true },
+    });
+    return { verified: true };
   }
 
   async login(dto: LoginDto): Promise<AuthResult> {

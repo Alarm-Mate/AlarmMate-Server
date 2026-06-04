@@ -1,6 +1,15 @@
 import { INestApplication } from '@nestjs/common';
 import request from 'supertest';
 import { Server } from 'http';
+import { PrismaService } from '../src/prisma/prisma.service';
+
+// 테스트용: 회원가입 게이트(이메일 인증) 통과를 위해 verified 레코드를 심는다.
+export async function seedVerifiedEmail(app: INestApplication, email: string): Promise<void> {
+  const prisma = app.get(PrismaService);
+  await prisma.emailVerification.create({
+    data: { email, code: '000000', verified: true, expiresAt: new Date(Date.now() + 600000) },
+  });
+}
 
 export interface SuccessBody<T> {
   success: true;
@@ -50,6 +59,7 @@ export async function registerUser(
   nickname: string,
   password = 'password123',
 ): Promise<AuthTokens> {
+  await seedVerifiedEmail(app, email);
   const res = await request(server(app))
     .post('/auth/register')
     .send({ email, nickname, password });

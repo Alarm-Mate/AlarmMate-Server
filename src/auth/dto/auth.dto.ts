@@ -40,6 +40,21 @@ export class ForgotPasswordDto {
   email!: string;
 }
 
+export class RequestVerificationDto {
+  @IsEmail()
+  email!: string;
+}
+
+export class VerifyEmailDto {
+  @IsEmail()
+  email!: string;
+
+  @IsString()
+  @MinLength(6)
+  @MaxLength(6)
+  code!: string;
+}
+
 export class ResetPasswordDto {
   @IsEmail()
   email!: string;
