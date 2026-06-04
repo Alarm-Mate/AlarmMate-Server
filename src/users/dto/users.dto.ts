@@ -21,6 +21,14 @@ export class UpdateMeDto {
   @IsOptional()
   @IsString()
   wakeGoalTime?: string;
+
+  @IsOptional()
+  @IsString()
+  birthDate?: string;
+
+  @IsOptional()
+  @IsString()
+  timezone?: string;
 }
 
 export class UpdateOneSignalDto {

@@ -20,6 +20,8 @@ interface MeProfile {
   nickname: string;
   profileImageUrl: string | null;
   wakeGoalTime: string | null;
+  birthDate: string | null;
+  timezone: string | null;
   wakeStreak: number;
   totalWakeDays: number;
   oneSignalSubscriptionId: string | null;
@@ -74,6 +76,8 @@ export class UsersService {
       nickname: user.nickname,
       profileImageUrl: user.profileImageUrl,
       wakeGoalTime: user.wakeGoalTime,
+      birthDate: user.birthDate,
+      timezone: user.timezone,
       wakeStreak: user.wakeStreak,
       totalWakeDays: user.totalWakeDays,
       oneSignalSubscriptionId: user.oneSignalSubscriptionId,
@@ -103,6 +107,8 @@ export class UsersService {
         ...(dto.wakeGoalTime !== undefined
           ? { wakeGoalTime: dto.wakeGoalTime }
           : {}),
+        ...(dto.birthDate !== undefined ? { birthDate: dto.birthDate } : {}),
+        ...(dto.timezone !== undefined ? { timezone: dto.timezone } : {}),
       },
     });
 
