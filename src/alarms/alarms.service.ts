@@ -7,6 +7,7 @@ import { CreateAlarmDto, UpdateAlarmDto } from './dto/alarms.dto';
 
 interface AlarmView {
   id: string;
+  clientId: string | null;
   name: string;
   time: string | null;
   days: number[];
@@ -71,6 +72,7 @@ export class AlarmsService {
     const alarm = await this.prisma.alarm.create({
       data: {
         userId,
+        clientId: dto.clientId ?? null,
         name: dto.name,
         time: dto.time ?? null,
         days: dto.days ?? [],
@@ -165,6 +167,7 @@ export class AlarmsService {
   private toView(alarm: Alarm): AlarmView {
     return {
       id: alarm.id,
+      clientId: alarm.clientId,
       name: alarm.name,
       time: alarm.time,
       days: alarm.days,

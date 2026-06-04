@@ -24,6 +24,10 @@ export class CreateAlarmDto {
   name!: string;
 
   @IsOptional()
+  @IsString()
+  clientId?: string;
+
+  @IsOptional()
   @IsEnum(AlarmType)
   type?: CreatableAlarmType;
 
