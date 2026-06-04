@@ -48,6 +48,12 @@ export class UsersController {
     );
   }
 
+  // 소셜 탐색: 사람들 + 알람 (검색어 없이 둘러보기)
+  @Get('discover')
+  discover(@CurrentUser() user: AuthUser, @Query('limit') limit?: string) {
+    return this.usersService.getDiscover(user.userId, limit ? Number(limit) : 20);
+  }
+
   @Get(':userId/grass')
   grass(
     @Param('userId') userId: string,

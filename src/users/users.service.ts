@@ -27,6 +27,14 @@ interface MateAlarmView {
   wokeToday: boolean;
 }
 
+interface DiscoverUser {
+  id: string;
+  nickname: string;
+  profileImageUrl: string | null;
+  isFollowing: boolean;
+  alarms: { id: string; name: string; time: string | null; days: number[]; wokeToday: boolean }[];
+}
+
 interface MeProfile {
   id: string;
   email: string;
@@ -275,6 +283,47 @@ export class UsersService {
       days: a.days,
       type: a.type,
       wokeToday: wokeAlarmIds.has(a.id),
+    }));
+  }
+
+  // 소셜 탐색: 최근 가입 유저들 + 각자의 개인 알람 + 오늘 기상 여부 + 내 팔로우 여부.
+  async getDiscover(viewerId: string, limit = 20): Promise<DiscoverUser[]> {
+    const users = await this.prisma.user.findMany({
+      where: { id: { not: viewerId } },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      select: {
+        id: true,
+        nickname: true,
+        profileImageUrl: true,
+        alarms: {
+          where: { type: AlarmType.PERSONAL },
+          orderBy: { createdAt: 'asc' },
+          take: 3,
+          select: { id: true, name: true, time: true, days: true },
+        },
+      },
+    });
+    const userIds = users.map((u) => u.id);
+    const { start, end } = getKstDayBoundsUtc();
+    const todayRecords = await this.prisma.wakeRecord.findMany({
+      where: { userId: { in: userIds }, wokeAt: { gte: start, lte: end } },
+      select: { alarmId: true },
+    });
+    const wokeAlarmIds = new Set(todayRecords.map((r) => r.alarmId));
+    const followingSet = await this.followsService.getFollowingIdSet(viewerId, userIds);
+    return users.map((u) => ({
+      id: u.id,
+      nickname: u.nickname,
+      profileImageUrl: u.profileImageUrl,
+      isFollowing: followingSet.has(u.id),
+      alarms: u.alarms.map((a) => ({
+        id: a.id,
+        name: a.name,
+        time: a.time,
+        days: a.days,
+        wokeToday: wokeAlarmIds.has(a.id),
+      })),
     }));
   }
 
