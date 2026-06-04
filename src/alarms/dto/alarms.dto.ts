@@ -83,6 +83,10 @@ export class UpdateAlarmDto {
 
   @IsOptional()
   @IsString()
+  clientId?: string;
+
+  @IsOptional()
+  @IsString()
   time?: string;
 
   @IsOptional()

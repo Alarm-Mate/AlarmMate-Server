@@ -105,6 +105,7 @@ export class AlarmsService {
 
     const data: Prisma.AlarmUpdateInput = {
       ...(dto.name !== undefined ? { name: dto.name } : {}),
+      ...(dto.clientId !== undefined ? { clientId: dto.clientId } : {}),
       ...(dto.time !== undefined ? { time: dto.time } : {}),
       ...(dto.days !== undefined ? { days: dto.days } : {}),
       ...(dto.isEnabled !== undefined ? { isEnabled: dto.isEnabled } : {}),
