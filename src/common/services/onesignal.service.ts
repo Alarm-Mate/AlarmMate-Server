@@ -76,13 +76,17 @@ export class OneSignalService {
   }
 
   private async post(body: Record<string, unknown>): Promise<void> {
-    const apiKey = this.configService.get<string>('ONESIGNAL_API_KEY');
+    const apiKey = this.configService.get<string>('ONESIGNAL_API_KEY') ?? '';
+    // 신형 키(os_v2_...)는 'Key' 스킴, 레거시 REST API Key는 'Basic' 스킴.
+    const authorization = apiKey.startsWith('os_v2_')
+      ? `Key ${apiKey}`
+      : `Basic ${apiKey}`;
     try {
       const response = await fetch(ONESIGNAL_ENDPOINT, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          Authorization: `Basic ${apiKey}`,
+          Authorization: authorization,
         },
         body: JSON.stringify(body),
       });
