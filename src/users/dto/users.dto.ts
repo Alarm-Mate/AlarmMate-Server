@@ -29,6 +29,10 @@ export class UpdateMeDto {
   @IsOptional()
   @IsString()
   timezone?: string;
+
+  @IsOptional()
+  @IsString()
+  bio?: string;
 }
 
 export class UpdateOneSignalDto {

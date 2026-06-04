@@ -9,10 +9,21 @@ import {
   PaginatedResult,
 } from '../common/dto/cursor.dto';
 import {
+  getKstDayBoundsUtc,
   kstDateStringDaysAgo,
   toKstDateString,
 } from '../common/utils/date.util';
+import { AlarmType } from '@prisma/client';
 import { UpdateMeDto } from './dto/users.dto';
+
+interface MateAlarmView {
+  id: string;
+  name: string;
+  time: string | null;
+  days: number[];
+  type: AlarmType;
+  wokeToday: boolean;
+}
 
 interface MeProfile {
   id: string;
@@ -22,6 +33,7 @@ interface MeProfile {
   wakeGoalTime: string | null;
   birthDate: string | null;
   timezone: string | null;
+  bio: string | null;
   wakeStreak: number;
   totalWakeDays: number;
   oneSignalSubscriptionId: string | null;
@@ -40,6 +52,7 @@ interface PublicProfile {
   id: string;
   nickname: string;
   profileImageUrl: string | null;
+  bio: string | null;
   wakeStreak: number;
   totalWakeDays: number;
   followerCount: number;
@@ -78,6 +91,7 @@ export class UsersService {
       wakeGoalTime: user.wakeGoalTime,
       birthDate: user.birthDate,
       timezone: user.timezone,
+      bio: user.bio,
       wakeStreak: user.wakeStreak,
       totalWakeDays: user.totalWakeDays,
       oneSignalSubscriptionId: user.oneSignalSubscriptionId,
@@ -109,6 +123,7 @@ export class UsersService {
           : {}),
         ...(dto.birthDate !== undefined ? { birthDate: dto.birthDate } : {}),
         ...(dto.timezone !== undefined ? { timezone: dto.timezone } : {}),
+        ...(dto.bio !== undefined ? { bio: dto.bio } : {}),
       },
     });
 
@@ -185,6 +200,7 @@ export class UsersService {
       id: user.id,
       nickname: user.nickname,
       profileImageUrl: user.profileImageUrl,
+      bio: user.bio,
       wakeStreak: user.wakeStreak,
       totalWakeDays: user.totalWakeDays,
       followerCount,
@@ -192,6 +208,34 @@ export class UsersService {
       isFollowing,
       grassData,
     };
+  }
+
+  // 메이트 알람 공유: 대상 유저의 알람 목록 + 오늘(KST) 기상 여부.
+  async getUserAlarms(targetUserId: string): Promise<MateAlarmView[]> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: targetUserId },
+    });
+    if (!user) {
+      throw new AppException(ErrorCode.USER_NOT_FOUND);
+    }
+    const alarms = await this.prisma.alarm.findMany({
+      where: { userId: targetUserId },
+      orderBy: { createdAt: 'asc' },
+    });
+    const { start, end } = getKstDayBoundsUtc();
+    const todayRecords = await this.prisma.wakeRecord.findMany({
+      where: { userId: targetUserId, wokeAt: { gte: start, lte: end } },
+      select: { alarmId: true },
+    });
+    const wokeAlarmIds = new Set(todayRecords.map((r) => r.alarmId));
+    return alarms.map((a) => ({
+      id: a.id,
+      name: a.name,
+      time: a.time,
+      days: a.days,
+      type: a.type,
+      wokeToday: wokeAlarmIds.has(a.id),
+    }));
   }
 
   async getGrass(userId: string, weeks: number): Promise<GrassEntry[]> {

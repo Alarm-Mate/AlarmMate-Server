@@ -16,6 +16,7 @@ model User {
   wakeGoalTime            String?
   birthDate               String?
   timezone                String?
+  bio                     String?
   wakeStreak              Int              @default(0)
   totalWakeDays           Int              @default(0)
   oneSignalSubscriptionId String?

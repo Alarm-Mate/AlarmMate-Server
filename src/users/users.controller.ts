@@ -55,6 +55,12 @@ export class UsersController {
     return this.usersService.getGrass(userId, query.weeks ?? 12);
   }
 
+  // 메이트 알람 공유: 대상 유저의 알람 목록 + 오늘 기상 여부
+  @Get(':userId/alarms')
+  userAlarms(@Param('userId') userId: string) {
+    return this.usersService.getUserAlarms(userId);
+  }
+
   @Get(':userId')
   getProfile(
     @CurrentUser() user: AuthUser,
