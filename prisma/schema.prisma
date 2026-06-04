@@ -1,0 +1,159 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id                      String           @id @default(cuid())
+  email                   String           @unique
+  password                String
+  nickname                String           @unique
+  profileImageUrl         String?
+  wakeGoalTime            String?
+  wakeStreak              Int              @default(0)
+  totalWakeDays           Int              @default(0)
+  oneSignalSubscriptionId String?
+  createdAt               DateTime         @default(now())
+  updatedAt               DateTime         @updatedAt
+  refreshTokens           RefreshToken[]
+  alarms                  Alarm[]
+  groupMembers            GroupMember[]
+  wakeRecords             WakeRecord[]
+  followers               Follow[]         @relation("Following")
+  following               Follow[]         @relation("Follower")
+  notifications           Notification[]
+  sentInvitations         GroupInvitation[] @relation("InvitedBy")
+  receivedInvitations     GroupInvitation[] @relation("InvitedUser")
+}
+
+model RefreshToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model Alarm {
+  id        String       @id @default(cuid())
+  userId    String
+  name      String
+  time      String
+  days      Int[]
+  isEnabled Boolean      @default(true)
+  vibration Boolean      @default(true)
+  soundId   String?
+  type      AlarmType    @default(PERSONAL)
+  groupId   String?
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  group     Group?       @relation(fields: [groupId], references: [id])
+  wakeRecords WakeRecord[]
+}
+
+enum AlarmType {
+  PERSONAL
+  GROUP
+}
+
+model Group {
+  id          String            @id @default(cuid())
+  name        String
+  alarmTime   String
+  days        Int[]
+  createdAt   DateTime          @default(now())
+  updatedAt   DateTime          @updatedAt
+  members     GroupMember[]
+  alarms      Alarm[]
+  invitations GroupInvitation[]
+  wakeRecords WakeRecord[]
+}
+
+model GroupMember {
+  id        String          @id @default(cuid())
+  groupId   String
+  userId    String
+  role      GroupMemberRole @default(MEMBER)
+  isEnabled Boolean         @default(true)
+  vibration Boolean         @default(true)
+  soundId   String?
+  joinedAt  DateTime        @default(now())
+  group     Group           @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  user      User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, userId])
+}
+
+enum GroupMemberRole {
+  OWNER
+  MEMBER
+}
+
+model GroupInvitation {
+  id          String           @id @default(cuid())
+  groupId     String
+  invitedById String
+  userId      String
+  status      InvitationStatus @default(PENDING)
+  expiresAt   DateTime
+  createdAt   DateTime         @default(now())
+  group       Group            @relation(fields: [groupId], references: [id], onDelete: Cascade)
+  invitedBy   User             @relation("InvitedBy", fields: [invitedById], references: [id])
+  user        User             @relation("InvitedUser", fields: [userId], references: [id])
+
+  @@unique([groupId, userId])
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+}
+
+model Follow {
+  id          String   @id @default(cuid())
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+  follower    User     @relation("Follower", fields: [followerId], references: [id], onDelete: Cascade)
+  following   User     @relation("Following", fields: [followingId], references: [id], onDelete: Cascade)
+
+  @@unique([followerId, followingId])
+}
+
+model WakeRecord {
+  id        String   @id @default(cuid())
+  userId    String
+  alarmId   String
+  groupId   String?
+  wokeAt    DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  alarm     Alarm    @relation(fields: [alarmId], references: [id])
+  group     Group?   @relation(fields: [groupId], references: [id])
+
+  @@unique([userId, alarmId])
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  type      NotificationType
+  isRead    Boolean          @default(false)
+  payload   Json
+  createdAt DateTime         @default(now())
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum NotificationType {
+  GROUP_INVITE
+  MEMBER_WOKE_UP
+  ALL_MEMBERS_WOKE_UP
+  NEW_FOLLOWER
+}
