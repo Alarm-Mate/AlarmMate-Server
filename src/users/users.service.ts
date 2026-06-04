@@ -13,8 +13,10 @@ import {
   kstDateStringDaysAgo,
   toKstDateString,
 } from '../common/utils/date.util';
-import { AlarmType } from '@prisma/client';
-import { UpdateMeDto } from './dto/users.dto';
+import { AlarmType, NotificationType } from '@prisma/client';
+import { NotificationsService } from '../notifications/notifications.service';
+import { OneSignalService } from '../common/services/onesignal.service';
+import { SendReactionDto, UpdateMeDto } from './dto/users.dto';
 
 interface MateAlarmView {
   id: string;
@@ -73,7 +75,45 @@ export class UsersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly followsService: FollowsService,
+    private readonly notificationsService: NotificationsService,
+    private readonly oneSignalService: OneSignalService,
   ) {}
+
+  // 메이트에게 이모지 리액션 전송: 인앱 알림 생성 + (가능 시) 푸시.
+  async sendReaction(
+    fromUserId: string,
+    targetUserId: string,
+    dto: SendReactionDto,
+  ): Promise<{ sent: boolean }> {
+    if (fromUserId === targetUserId) {
+      throw new AppException(ErrorCode.VALIDATION_ERROR, '자신에게는 보낼 수 없어요.');
+    }
+    const [sender, target] = await Promise.all([
+      this.prisma.user.findUnique({ where: { id: fromUserId } }),
+      this.prisma.user.findUnique({ where: { id: targetUserId } }),
+    ]);
+    if (!target || !sender) {
+      throw new AppException(ErrorCode.USER_NOT_FOUND);
+    }
+
+    await this.notificationsService.create(targetUserId, NotificationType.REACTION, {
+      fromUserId,
+      fromNickname: sender.nickname,
+      emoji: dto.emoji,
+      kind: dto.kind ?? null,
+    });
+
+    if (target.oneSignalSubscriptionId) {
+      await this.oneSignalService.sendNotification(
+        [target.oneSignalSubscriptionId],
+        '알람메이트',
+        `${sender.nickname}님이 ${dto.emoji} 보냈어요`,
+        { type: NotificationType.REACTION, fromUserId, emoji: dto.emoji },
+      );
+    }
+
+    return { sent: true };
+  }
 
   async getMe(userId: string): Promise<MeProfile> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });

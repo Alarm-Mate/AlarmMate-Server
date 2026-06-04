@@ -184,6 +184,7 @@ enum NotificationType {
   MEMBER_WOKE_UP
   ALL_MEMBERS_WOKE_UP
   NEW_FOLLOWER
+  REACTION
 }
 
 model Sound {

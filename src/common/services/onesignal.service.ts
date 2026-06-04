@@ -44,6 +44,39 @@ export class OneSignalService {
       data,
     };
 
+    await this.post(body);
+  }
+
+  /** 화면에 표시되는 일반 푸시(배너 + 사운드). 메이트 이모지 리액션 등에 사용. */
+  async sendNotification(
+    subscriptionIds: string[],
+    title: string,
+    message: string,
+    data?: Record<string, string>,
+  ): Promise<void> {
+    const targets = subscriptionIds.filter(
+      (id): id is string => typeof id === 'string' && id.length > 0,
+    );
+    if (targets.length === 0) {
+      return;
+    }
+    const appId = this.configService.get<string>('ONESIGNAL_APP_ID');
+    const apiKey = this.configService.get<string>('ONESIGNAL_API_KEY');
+    if (!appId || !apiKey || appId.startsWith('placeholder')) {
+      this.logger.warn('OneSignal credentials missing; skipping push');
+      return;
+    }
+    await this.post({
+      app_id: appId,
+      include_player_ids: targets,
+      headings: { en: title },
+      contents: { en: message },
+      ...(data ? { data } : {}),
+    });
+  }
+
+  private async post(body: Record<string, unknown>): Promise<void> {
+    const apiKey = this.configService.get<string>('ONESIGNAL_API_KEY');
     try {
       const response = await fetch(ONESIGNAL_ENDPOINT, {
         method: 'POST',

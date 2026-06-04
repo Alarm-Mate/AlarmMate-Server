@@ -1,12 +1,26 @@
 import { Type } from 'class-transformer';
 import {
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
   Max,
+  MaxLength,
   Min,
   MinLength,
 } from 'class-validator';
+
+export class SendReactionDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(16)
+  emoji!: string;
+
+  @IsOptional()
+  @IsString()
+  @IsIn(['PROVOKE', 'CHEER'])
+  kind?: 'PROVOKE' | 'CHEER';
+}
 
 export class UpdateMeDto {
   @IsOptional()

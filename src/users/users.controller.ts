@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Query } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { UsersService } from './users.service';
 import {
   AuthUser,
@@ -8,6 +8,7 @@ import { DEFAULT_PAGE_LIMIT } from '../common/dto/cursor.dto';
 import {
   GrassQueryDto,
   SearchUsersDto,
+  SendReactionDto,
   UpdateMeDto,
   UpdateOneSignalDto,
 } from './dto/users.dto';
@@ -59,6 +60,16 @@ export class UsersController {
   @Get(':userId/alarms')
   userAlarms(@Param('userId') userId: string) {
     return this.usersService.getUserAlarms(userId);
+  }
+
+  // 메이트에게 이모지 리액션 전송
+  @Post(':userId/reactions')
+  sendReaction(
+    @CurrentUser() user: AuthUser,
+    @Param('userId') userId: string,
+    @Body() dto: SendReactionDto,
+  ) {
+    return this.usersService.sendReaction(user.userId, userId, dto);
   }
 
   @Get(':userId')
