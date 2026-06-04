@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { randomBytes, randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
@@ -6,8 +6,14 @@ import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../prisma/prisma.service';
 import { AppException } from '../common/errors/app.exception';
 import { ErrorCode } from '../common/errors/error-code.enum';
+import { MailService } from '../common/services/mail.service';
 import { JwtPayload } from './jwt.strategy';
-import { LoginDto, RegisterDto } from './dto/auth.dto';
+import {
+  ForgotPasswordDto,
+  LoginDto,
+  RegisterDto,
+  ResetPasswordDto,
+} from './dto/auth.dto';
 
 interface TokenPair {
   accessToken: string;
@@ -24,6 +30,7 @@ interface AuthResult extends TokenPair {
 
 const PASSWORD_REGEX = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
 const REFRESH_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const RESET_TTL_MS = 30 * 60 * 1000;
 
 @Injectable()
 export class AuthService {
@@ -31,6 +38,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwtService: JwtService,
     private readonly configService: ConfigService,
+    private readonly mailService: MailService,
   ) {}
 
   async register(dto: RegisterDto): Promise<AuthResult> {
@@ -111,6 +119,53 @@ export class AuthService {
   async logout(refreshToken: string): Promise<{ success: boolean }> {
     await this.prisma.refreshToken.deleteMany({ where: { token: refreshToken } });
     return { success: true };
+  }
+
+  async forgotPassword(
+    dto: ForgotPasswordDto,
+  ): Promise<{ requested: boolean }> {
+    const user = await this.prisma.user.findUnique({
+      where: { email: dto.email },
+    });
+    if (user) {
+      const token = randomBytes(32).toString('hex');
+      await this.prisma.passwordResetToken.create({
+        data: {
+          token,
+          userId: user.id,
+          expiresAt: new Date(Date.now() + RESET_TTL_MS),
+        },
+      });
+      await this.mailService.sendPasswordResetEmail(user.email, token);
+    }
+    return { requested: true };
+  }
+
+  async resetPassword(dto: ResetPasswordDto): Promise<{ reset: boolean }> {
+    const record = await this.prisma.passwordResetToken.findUnique({
+      where: { token: dto.token },
+    });
+    if (!record || record.used || record.expiresAt.getTime() < Date.now()) {
+      throw new AppException(ErrorCode.INVALID_RESET_TOKEN);
+    }
+    if (!PASSWORD_REGEX.test(dto.newPassword)) {
+      throw new AppException(ErrorCode.INVALID_PASSWORD_FORMAT);
+    }
+
+    const hashed = await bcrypt.hash(dto.newPassword, 10);
+    await this.prisma.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: record.userId },
+        data: { password: hashed },
+      });
+      await tx.passwordResetToken.update({
+        where: { id: record.id },
+        data: { used: true },
+      });
+      await tx.refreshToken.deleteMany({ where: { userId: record.userId } });
+    });
+
+    return { reset: true };
   }
 
   async withdraw(userId: string): Promise<{ success: boolean }> {
