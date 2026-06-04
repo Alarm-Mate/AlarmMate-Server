@@ -1,0 +1,80 @@
+import { Type } from 'class-transformer';
+import {
+  ArrayMaxSize,
+  IsArray,
+  IsInt,
+  IsOptional,
+  IsString,
+  Max,
+  Min,
+  MinLength,
+} from 'class-validator';
+
+export class CreateGroupDto {
+  @IsString()
+  @MinLength(1)
+  name!: string;
+
+  @IsString()
+  alarmTime!: string;
+
+  @IsArray()
+  @ArrayMaxSize(7)
+  @IsInt({ each: true })
+  @Min(0, { each: true })
+  @Max(6, { each: true })
+  days!: number[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  memberUserIds?: string[];
+}
+
+export class UpdateGroupDto {
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  name?: string;
+
+  @IsOptional()
+  @IsString()
+  alarmTime?: string;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(7)
+  @IsInt({ each: true })
+  @Min(0, { each: true })
+  @Max(6, { each: true })
+  days?: number[];
+}
+
+export class InviteDto {
+  @IsString()
+  userId!: string;
+}
+
+export class TransferOwnerDto {
+  @IsString()
+  newOwnerId!: string;
+}
+
+export class WakeStatusQueryDto {
+  @IsOptional()
+  @IsString()
+  date?: string;
+}
+
+export class CursorOnlyDto {
+  @IsOptional()
+  @IsString()
+  cursor?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  limit?: number;
+}
