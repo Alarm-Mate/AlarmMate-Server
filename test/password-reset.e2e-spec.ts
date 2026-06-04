@@ -46,7 +46,8 @@ describe('password reset', () => {
     expect(tokens).toHaveLength(1);
     expect(tokens[0].used).toBe(false);
     const ttlMs = tokens[0].expiresAt.getTime() - tokens[0].createdAt.getTime();
-    expect(Math.round(ttlMs / (60 * 1000))).toBe(30);
+    expect(Math.round(ttlMs / (60 * 1000))).toBe(10);
+    expect(tokens[0].token).toMatch(/^\d{6}$/);
   });
 
   it('forgot-password: unknown email returns generic success and creates no token', async () => {
@@ -72,7 +73,7 @@ describe('password reset', () => {
 
     const res = await request(server(h.app))
       .post('/auth/reset-password')
-      .send({ token: record!.token, newPassword: 'newpass123' });
+      .send({ email: 'alice@b.com', code: record!.token, newPassword: 'newpass123' });
     expect(res.status).toBe(200);
     const data = expectSuccess(res.body as ApiBody<ResetResult>);
     expect(data.reset).toBe(true);
@@ -101,7 +102,7 @@ describe('password reset', () => {
   it('reset-password: invalid token -> INVALID_RESET_TOKEN 401', async () => {
     const res = await request(server(h.app))
       .post('/auth/reset-password')
-      .send({ token: 'does-not-exist', newPassword: 'newpass123' });
+      .send({ email: 'alice@b.com', code: '000000', newPassword: 'newpass123' });
     expect(res.status).toBe(401);
     expect(expectError(res.body as ApiBody<unknown>).code).toBe(
       'INVALID_RESET_TOKEN',
@@ -117,11 +118,11 @@ describe('password reset', () => {
     });
     await request(server(h.app))
       .post('/auth/reset-password')
-      .send({ token: record!.token, newPassword: 'newpass123' });
+      .send({ email: 'alice@b.com', code: record!.token, newPassword: 'newpass123' });
 
     const res = await request(server(h.app))
       .post('/auth/reset-password')
-      .send({ token: record!.token, newPassword: 'another123' });
+      .send({ email: 'alice@b.com', code: record!.token, newPassword: 'another123' });
     expect(res.status).toBe(401);
     expect(expectError(res.body as ApiBody<unknown>).code).toBe(
       'INVALID_RESET_TOKEN',
@@ -142,7 +143,7 @@ describe('password reset', () => {
 
     const res = await request(server(h.app))
       .post('/auth/reset-password')
-      .send({ token: record!.token, newPassword: 'newpass123' });
+      .send({ email: 'alice@b.com', code: record!.token, newPassword: 'newpass123' });
     expect(res.status).toBe(401);
     expect(expectError(res.body as ApiBody<unknown>).code).toBe(
       'INVALID_RESET_TOKEN',
@@ -159,7 +160,7 @@ describe('password reset', () => {
 
     const res = await request(server(h.app))
       .post('/auth/reset-password')
-      .send({ token: record!.token, newPassword: 'alllettersnodigits' });
+      .send({ email: 'alice@b.com', code: record!.token, newPassword: 'alllettersnodigits' });
     expect(res.status).toBe(400);
     expect(expectError(res.body as ApiBody<unknown>).code).toBe(
       'INVALID_PASSWORD_FORMAT',

@@ -1,4 +1,4 @@
-import { randomBytes, randomUUID } from 'node:crypto';
+import { randomInt, randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
@@ -30,7 +30,7 @@ interface AuthResult extends TokenPair {
 
 const PASSWORD_REGEX = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
 const REFRESH_TTL_MS = 30 * 24 * 60 * 60 * 1000;
-const RESET_TTL_MS = 30 * 60 * 1000;
+const RESET_TTL_MS = 10 * 60 * 1000;
 
 @Injectable()
 export class AuthService {
@@ -71,6 +71,8 @@ export class AuthService {
     });
 
     const tokens = await this.issueAndStore(user.id, user.email);
+    // 가입 축하 메일(실패 무관, fire-and-forget)
+    void this.mailService.sendWelcomeEmail(user.email, user.nickname);
     return {
       ...tokens,
       user: { id: user.id, email: user.email, nickname: user.nickname },
@@ -133,24 +135,31 @@ export class AuthService {
       where: { email: dto.email },
     });
     if (user) {
-      const token = randomBytes(32).toString('hex');
+      // 기존 미사용 코드 정리 후 새 6자리 코드 발급
+      await this.prisma.passwordResetToken.deleteMany({ where: { userId: user.id } });
+      const code = String(randomInt(100000, 1000000));
       await this.prisma.passwordResetToken.create({
         data: {
-          token,
+          token: code,
           userId: user.id,
           expiresAt: new Date(Date.now() + RESET_TTL_MS),
         },
       });
-      await this.mailService.sendPasswordResetEmail(user.email, token);
+      await this.mailService.sendPasswordResetCode(user.email, code);
     }
     return { requested: true };
   }
 
   async resetPassword(dto: ResetPasswordDto): Promise<{ reset: boolean }> {
-    const record = await this.prisma.passwordResetToken.findUnique({
-      where: { token: dto.token },
+    const user = await this.prisma.user.findUnique({ where: { email: dto.email } });
+    if (!user) {
+      throw new AppException(ErrorCode.INVALID_RESET_TOKEN);
+    }
+    const record = await this.prisma.passwordResetToken.findFirst({
+      where: { userId: user.id, token: dto.code, used: false },
+      orderBy: { createdAt: 'desc' },
     });
-    if (!record || record.used || record.expiresAt.getTime() < Date.now()) {
+    if (!record || record.expiresAt.getTime() < Date.now()) {
       throw new AppException(ErrorCode.INVALID_RESET_TOKEN);
     }
     if (!PASSWORD_REGEX.test(dto.newPassword)) {
