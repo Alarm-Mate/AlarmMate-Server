@@ -7,6 +7,7 @@ const ERROR_STATUS_MAP: Record<ErrorCode, HttpStatus> = {
   [ErrorCode.INVALID_PASSWORD_FORMAT]: HttpStatus.BAD_REQUEST,
   [ErrorCode.INVALID_CREDENTIALS]: HttpStatus.UNAUTHORIZED,
   [ErrorCode.INVALID_REFRESH_TOKEN]: HttpStatus.UNAUTHORIZED,
+  [ErrorCode.INVALID_RESET_TOKEN]: HttpStatus.UNAUTHORIZED,
   [ErrorCode.UNAUTHORIZED]: HttpStatus.UNAUTHORIZED,
   [ErrorCode.FORBIDDEN]: HttpStatus.FORBIDDEN,
   [ErrorCode.ALARM_NOT_FOUND]: HttpStatus.NOT_FOUND,
@@ -20,6 +21,7 @@ const ERROR_STATUS_MAP: Record<ErrorCode, HttpStatus> = {
   [ErrorCode.ALREADY_WOKE_TODAY]: HttpStatus.CONFLICT,
   [ErrorCode.USER_NOT_FOUND]: HttpStatus.NOT_FOUND,
   [ErrorCode.NOTIFICATION_NOT_FOUND]: HttpStatus.NOT_FOUND,
+  [ErrorCode.SOUND_NOT_FOUND]: HttpStatus.NOT_FOUND,
   [ErrorCode.VALIDATION_ERROR]: HttpStatus.BAD_REQUEST,
   [ErrorCode.INTERNAL_SERVER_ERROR]: HttpStatus.INTERNAL_SERVER_ERROR,
 };
@@ -30,6 +32,7 @@ const DEFAULT_MESSAGE: Record<ErrorCode, string> = {
   [ErrorCode.INVALID_PASSWORD_FORMAT]: 'Password must be at least 8 characters and contain letters and digits',
   [ErrorCode.INVALID_CREDENTIALS]: 'Invalid credentials',
   [ErrorCode.INVALID_REFRESH_TOKEN]: 'Invalid refresh token',
+  [ErrorCode.INVALID_RESET_TOKEN]: 'Invalid or expired reset token',
   [ErrorCode.UNAUTHORIZED]: 'Unauthorized',
   [ErrorCode.FORBIDDEN]: 'Forbidden',
   [ErrorCode.ALARM_NOT_FOUND]: 'Alarm not found',
@@ -43,6 +46,7 @@ const DEFAULT_MESSAGE: Record<ErrorCode, string> = {
   [ErrorCode.ALREADY_WOKE_TODAY]: 'Already woke up today for this alarm',
   [ErrorCode.USER_NOT_FOUND]: 'User not found',
   [ErrorCode.NOTIFICATION_NOT_FOUND]: 'Notification not found',
+  [ErrorCode.SOUND_NOT_FOUND]: 'Sound not found',
   [ErrorCode.VALIDATION_ERROR]: 'Validation error',
   [ErrorCode.INTERNAL_SERVER_ERROR]: 'Internal server error',
 };

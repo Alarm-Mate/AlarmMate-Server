@@ -13,6 +13,7 @@ import { WakeModule } from './wake/wake.module';
 import { SocialModule } from './social/social.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { UploadsModule } from './uploads/uploads.module';
+import { SoundsModule } from './sounds/sounds.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { UploadsModule } from './uploads/uploads.module';
     SocialModule,
     NotificationsModule,
     UploadsModule,
+    SoundsModule,
   ],
   providers: [
     {

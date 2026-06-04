@@ -28,6 +28,8 @@ model User {
   notifications           Notification[]
   sentInvitations         GroupInvitation[] @relation("InvitedBy")
   receivedInvitations     GroupInvitation[] @relation("InvitedUser")
+  passwordResetTokens     PasswordResetToken[]
+  sounds                  Sound[]
 }
 
 model RefreshToken {
@@ -39,17 +41,32 @@ model RefreshToken {
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
+model PasswordResetToken {
+  id        String   @id @default(cuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
 model Alarm {
   id        String       @id @default(cuid())
   userId    String
   name      String
-  time      String
+  time      String?
   days      Int[]
   isEnabled Boolean      @default(true)
   vibration Boolean      @default(true)
   soundId   String?
   type      AlarmType    @default(PERSONAL)
   groupId   String?
+  placeName String?
+  latitude  Float?
+  longitude Float?
+  radius    Int?
+  locationTrigger LocationTrigger?
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
   user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -60,6 +77,12 @@ model Alarm {
 enum AlarmType {
   PERSONAL
   GROUP
+  LOCATION
+}
+
+enum LocationTrigger {
+  ARRIVE
+  LEAVE
 }
 
 model Group {
@@ -156,4 +179,14 @@ enum NotificationType {
   MEMBER_WOKE_UP
   ALL_MEMBERS_WOKE_UP
   NEW_FOLLOWER
+}
+
+model Sound {
+  id        String   @id @default(cuid())
+  name      String
+  url       String
+  userId    String?
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  user      User?    @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
