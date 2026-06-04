@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { Alarm, AlarmType } from '@prisma/client';
+import { Alarm, AlarmType, LocationTrigger, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AppException } from '../common/errors/app.exception';
 import { ErrorCode } from '../common/errors/error-code.enum';
@@ -8,13 +8,18 @@ import { CreateAlarmDto, UpdateAlarmDto } from './dto/alarms.dto';
 interface AlarmView {
   id: string;
   name: string;
-  time: string;
+  time: string | null;
   days: number[];
   isEnabled: boolean;
   vibration: boolean;
   soundId: string | null;
   type: AlarmType;
   groupId: string | null;
+  placeName: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  radius: number | null;
+  locationTrigger: LocationTrigger | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -32,15 +37,51 @@ export class AlarmsService {
   }
 
   async create(userId: string, dto: CreateAlarmDto): Promise<AlarmView> {
+    const type = dto.type ?? AlarmType.PERSONAL;
+
+    if (type === AlarmType.LOCATION) {
+      if (
+        dto.placeName === undefined ||
+        dto.latitude === undefined ||
+        dto.longitude === undefined ||
+        dto.radius === undefined ||
+        dto.locationTrigger === undefined
+      ) {
+        throw new AppException(
+          ErrorCode.VALIDATION_ERROR,
+          'placeName, latitude, longitude, radius and locationTrigger are required for LOCATION alarms',
+        );
+      }
+    } else {
+      if (dto.time === undefined) {
+        throw new AppException(
+          ErrorCode.VALIDATION_ERROR,
+          'time is required for PERSONAL alarms',
+        );
+      }
+      if (this.hasLocationFields(dto)) {
+        throw new AppException(
+          ErrorCode.VALIDATION_ERROR,
+          'location fields are not allowed for PERSONAL alarms',
+        );
+      }
+    }
+
+    const isLocation = type === AlarmType.LOCATION;
     const alarm = await this.prisma.alarm.create({
       data: {
         userId,
         name: dto.name,
-        time: dto.time,
-        days: dto.days,
+        time: dto.time ?? null,
+        days: dto.days ?? [],
         vibration: dto.vibration ?? true,
         soundId: dto.soundId ?? null,
-        type: AlarmType.PERSONAL,
+        type,
+        placeName: isLocation ? (dto.placeName ?? null) : null,
+        latitude: isLocation ? (dto.latitude ?? null) : null,
+        longitude: isLocation ? (dto.longitude ?? null) : null,
+        radius: isLocation ? (dto.radius ?? null) : null,
+        locationTrigger: isLocation ? (dto.locationTrigger ?? null) : null,
       },
     });
     return this.toView(alarm);
@@ -51,17 +92,34 @@ export class AlarmsService {
     alarmId: string,
     dto: UpdateAlarmDto,
   ): Promise<AlarmView> {
-    await this.ensureOwned(userId, alarmId);
+    const existing = await this.ensureOwned(userId, alarmId);
+
+    if (existing.type !== AlarmType.LOCATION && this.hasLocationFields(dto)) {
+      throw new AppException(
+        ErrorCode.VALIDATION_ERROR,
+        'location fields are only allowed for LOCATION alarms',
+      );
+    }
+
+    const data: Prisma.AlarmUpdateInput = {
+      ...(dto.name !== undefined ? { name: dto.name } : {}),
+      ...(dto.time !== undefined ? { time: dto.time } : {}),
+      ...(dto.days !== undefined ? { days: dto.days } : {}),
+      ...(dto.isEnabled !== undefined ? { isEnabled: dto.isEnabled } : {}),
+      ...(dto.vibration !== undefined ? { vibration: dto.vibration } : {}),
+      ...(dto.soundId !== undefined ? { soundId: dto.soundId } : {}),
+      ...(dto.placeName !== undefined ? { placeName: dto.placeName } : {}),
+      ...(dto.latitude !== undefined ? { latitude: dto.latitude } : {}),
+      ...(dto.longitude !== undefined ? { longitude: dto.longitude } : {}),
+      ...(dto.radius !== undefined ? { radius: dto.radius } : {}),
+      ...(dto.locationTrigger !== undefined
+        ? { locationTrigger: dto.locationTrigger }
+        : {}),
+    };
+
     const alarm = await this.prisma.alarm.update({
       where: { id: alarmId },
-      data: {
-        ...(dto.name !== undefined ? { name: dto.name } : {}),
-        ...(dto.time !== undefined ? { time: dto.time } : {}),
-        ...(dto.days !== undefined ? { days: dto.days } : {}),
-        ...(dto.isEnabled !== undefined ? { isEnabled: dto.isEnabled } : {}),
-        ...(dto.vibration !== undefined ? { vibration: dto.vibration } : {}),
-        ...(dto.soundId !== undefined ? { soundId: dto.soundId } : {}),
-      },
+      data,
     });
     return this.toView(alarm);
   }
@@ -79,6 +137,16 @@ export class AlarmsService {
       data: { isEnabled: !alarm.isEnabled },
     });
     return this.toView(updated);
+  }
+
+  private hasLocationFields(dto: CreateAlarmDto | UpdateAlarmDto): boolean {
+    return (
+      dto.placeName !== undefined ||
+      dto.latitude !== undefined ||
+      dto.longitude !== undefined ||
+      dto.radius !== undefined ||
+      dto.locationTrigger !== undefined
+    );
   }
 
   private async ensureOwned(userId: string, alarmId: string): Promise<Alarm> {
@@ -105,6 +173,11 @@ export class AlarmsService {
       soundId: alarm.soundId,
       type: alarm.type,
       groupId: alarm.groupId,
+      placeName: alarm.placeName,
+      latitude: alarm.latitude,
+      longitude: alarm.longitude,
+      radius: alarm.radius,
+      locationTrigger: alarm.locationTrigger,
       createdAt: alarm.createdAt.toISOString(),
       updatedAt: alarm.updatedAt.toISOString(),
     };
