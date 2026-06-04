@@ -17,9 +17,15 @@ import {
 } from '../common/utils/date.util';
 import {
   CreateGroupDto,
+  MemberSettingsDto,
   TransferOwnerDto,
   UpdateGroupDto,
 } from './dto/groups.dto';
+import {
+  buildPaginatedResult,
+  DEFAULT_PAGE_LIMIT,
+  PaginatedResult,
+} from '../common/dto/cursor.dto';
 
 interface MemberWakeView {
   userId: string;
@@ -259,14 +265,31 @@ export class GroupsService {
     dto: UpdateGroupDto,
   ): Promise<GroupView> {
     await this.ensureOwner(userId, groupId);
-    await this.prisma.group.update({
-      where: { id: groupId },
-      data: {
-        ...(dto.name !== undefined ? { name: dto.name } : {}),
-        ...(dto.alarmTime !== undefined ? { alarmTime: dto.alarmTime } : {}),
-        ...(dto.days !== undefined ? { days: dto.days } : {}),
-      },
+
+    const alarmData: Prisma.AlarmUpdateManyMutationInput = {
+      ...(dto.name !== undefined ? { name: dto.name } : {}),
+      ...(dto.alarmTime !== undefined ? { time: dto.alarmTime } : {}),
+      ...(dto.days !== undefined ? { days: dto.days } : {}),
+    };
+    const shouldSyncAlarms = Object.keys(alarmData).length > 0;
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.group.update({
+        where: { id: groupId },
+        data: {
+          ...(dto.name !== undefined ? { name: dto.name } : {}),
+          ...(dto.alarmTime !== undefined ? { alarmTime: dto.alarmTime } : {}),
+          ...(dto.days !== undefined ? { days: dto.days } : {}),
+        },
+      });
+      if (shouldSyncAlarms) {
+        await tx.alarm.updateMany({
+          where: { groupId, type: AlarmType.GROUP },
+          data: alarmData,
+        });
+      }
     });
+
     return this.getGroup(userId, groupId);
   }
 
@@ -556,6 +579,158 @@ export class GroupsService {
           wokeAt: wokeAt ? wokeAt.toISOString() : null,
         };
       }),
+    };
+  }
+
+  async updateMemberSettings(
+    userId: string,
+    groupId: string,
+    dto: MemberSettingsDto,
+  ): Promise<{ vibration: boolean; soundId: string | null }> {
+    const membership = await this.prisma.groupMember.findUnique({
+      where: { groupId_userId: { groupId, userId } },
+    });
+    if (!membership) {
+      throw new AppException(ErrorCode.NOT_GROUP_MEMBER);
+    }
+
+    const memberData = {
+      ...(dto.vibration !== undefined ? { vibration: dto.vibration } : {}),
+      ...(dto.soundId !== undefined ? { soundId: dto.soundId } : {}),
+    };
+
+    const updated = await this.prisma.$transaction(async (tx) => {
+      const member = await tx.groupMember.update({
+        where: { groupId_userId: { groupId, userId } },
+        data: memberData,
+      });
+      if (Object.keys(memberData).length > 0) {
+        await tx.alarm.updateMany({
+          where: { userId, groupId, type: AlarmType.GROUP },
+          data: memberData,
+        });
+      }
+      return member;
+    });
+
+    return { vibration: updated.vibration, soundId: updated.soundId };
+  }
+
+  async ringState(
+    userId: string,
+    groupId: string,
+  ): Promise<{
+    active: boolean;
+    allWoke: boolean;
+    pendingMembers: Array<{ userId: string; nickname: string }>;
+    wokeMembers: Array<{ userId: string; nickname: string; wokeAt: string }>;
+  }> {
+    const membership = await this.prisma.groupMember.findUnique({
+      where: { groupId_userId: { groupId, userId } },
+    });
+    if (!membership) {
+      throw new AppException(ErrorCode.NOT_GROUP_MEMBER);
+    }
+
+    const members = await this.prisma.groupMember.findMany({
+      where: { groupId },
+      include: {
+        user: { select: { id: true, nickname: true } },
+      },
+    });
+
+    const { start, end } = getKstDayBoundsUtc();
+    const wakeMap = await this.buildWakeMap(
+      groupId,
+      members.map((m) => m.userId),
+      start,
+      end,
+    );
+
+    const pendingMembers: Array<{ userId: string; nickname: string }> = [];
+    const wokeMembers: Array<{
+      userId: string;
+      nickname: string;
+      wokeAt: string;
+    }> = [];
+
+    for (const member of members) {
+      const wokeAt = wakeMap.get(member.userId) ?? null;
+      if (wokeAt) {
+        wokeMembers.push({
+          userId: member.userId,
+          nickname: member.user.nickname,
+          wokeAt: wokeAt.toISOString(),
+        });
+      } else {
+        pendingMembers.push({
+          userId: member.userId,
+          nickname: member.user.nickname,
+        });
+      }
+    }
+
+    const allWoke = members.length > 0 && pendingMembers.length === 0;
+    const active = membership.isEnabled && !allWoke;
+
+    return { active, allWoke, pendingMembers, wokeMembers };
+  }
+
+  async listInvitations(
+    userId: string,
+    cursor: string | undefined,
+    limit: number = DEFAULT_PAGE_LIMIT,
+  ): Promise<
+    PaginatedResult<{
+      id: string;
+      group: {
+        id: string;
+        name: string;
+        alarmTime: string;
+        memberCount: number;
+      };
+      invitedBy: { id: string; nickname: string };
+      createdAt: string;
+      expiresAt: string;
+    }>
+  > {
+    const rows = await this.prisma.groupInvitation.findMany({
+      where: {
+        userId,
+        status: InvitationStatus.PENDING,
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: { id: 'desc' },
+      take: limit + 1,
+      ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+      include: {
+        group: {
+          include: { _count: { select: { members: true } } },
+        },
+        invitedBy: { select: { id: true, nickname: true } },
+      },
+    });
+
+    const page = buildPaginatedResult(rows, limit);
+
+    return {
+      items: page.items.map((row) => ({
+        id: row.id,
+        group: {
+          id: row.group.id,
+          name: row.group.name,
+          alarmTime: row.group.alarmTime,
+          memberCount: row.group._count.members,
+        },
+        invitedBy: {
+          id: row.invitedBy.id,
+          nickname: row.invitedBy.nickname,
+        },
+        createdAt: row.createdAt.toISOString(),
+        expiresAt: row.expiresAt.toISOString(),
+      })),
+      nextCursor: page.nextCursor,
+      hasMore: page.hasMore,
     };
   }
 

@@ -17,11 +17,14 @@ import {
 } from '../common/decorators/current-user.decorator';
 import {
   CreateGroupDto,
+  CursorOnlyDto,
   InviteDto,
+  MemberSettingsDto,
   TransferOwnerDto,
   UpdateGroupDto,
   WakeStatusQueryDto,
 } from './dto/groups.dto';
+import { DEFAULT_PAGE_LIMIT } from '../common/dto/cursor.dto';
 
 @Controller('groups')
 export class GroupsController {
@@ -36,6 +39,18 @@ export class GroupsController {
   @HttpCode(HttpStatus.CREATED)
   create(@CurrentUser() user: AuthUser, @Body() dto: CreateGroupDto) {
     return this.groupsService.createGroup(user.userId, dto);
+  }
+
+  @Get('invitations')
+  invitations(
+    @CurrentUser() user: AuthUser,
+    @Query() query: CursorOnlyDto,
+  ) {
+    return this.groupsService.listInvitations(
+      user.userId,
+      query.cursor,
+      query.limit ?? DEFAULT_PAGE_LIMIT,
+    );
   }
 
   @Get(':groupId')
@@ -117,5 +132,22 @@ export class GroupsController {
     @Query() query: WakeStatusQueryDto,
   ) {
     return this.groupsService.wakeStatus(user.userId, groupId, query.date);
+  }
+
+  @Patch(':groupId/member-settings')
+  memberSettings(
+    @CurrentUser() user: AuthUser,
+    @Param('groupId') groupId: string,
+    @Body() dto: MemberSettingsDto,
+  ) {
+    return this.groupsService.updateMemberSettings(user.userId, groupId, dto);
+  }
+
+  @Get(':groupId/ring-state')
+  ringState(
+    @CurrentUser() user: AuthUser,
+    @Param('groupId') groupId: string,
+  ) {
+    return this.groupsService.ringState(user.userId, groupId);
   }
 }

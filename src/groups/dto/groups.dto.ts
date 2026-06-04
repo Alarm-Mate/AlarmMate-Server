@@ -2,6 +2,7 @@ import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
   IsArray,
+  IsBoolean,
   IsInt,
   IsOptional,
   IsString,
@@ -77,4 +78,14 @@ export class CursorOnlyDto {
   @Min(1)
   @Max(100)
   limit?: number;
+}
+
+export class MemberSettingsDto {
+  @IsOptional()
+  @IsBoolean()
+  vibration?: boolean;
+
+  @IsOptional()
+  @IsString()
+  soundId?: string;
 }
