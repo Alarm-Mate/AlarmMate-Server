@@ -1,0 +1,13 @@
+process.env.DATABASE_URL =
+  'postgresql://postgres:postgres@localhost:5434/alarmmate_test?schema=public';
+process.env.JWT_ACCESS_SECRET = 'test-access-secret';
+process.env.JWT_REFRESH_SECRET = 'test-refresh-secret';
+process.env.JWT_ACCESS_EXPIRES_IN = '1h';
+process.env.JWT_REFRESH_EXPIRES_IN = '30d';
+process.env.ONESIGNAL_APP_ID = 'placeholder-onesignal-app-id';
+process.env.ONESIGNAL_API_KEY = 'placeholder-onesignal-api-key';
+process.env.AWS_REGION = 'ap-northeast-2';
+process.env.AWS_ACCESS_KEY_ID = 'test-access-key-id';
+process.env.AWS_SECRET_ACCESS_KEY = 'test-secret-access-key';
+process.env.AWS_S3_BUCKET = 'alarmmate-uploads';
+process.env.PORT = '0';
