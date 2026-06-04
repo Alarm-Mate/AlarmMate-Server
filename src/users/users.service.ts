@@ -44,6 +44,7 @@ interface MeProfile {
   birthDate: string | null;
   timezone: string | null;
   bio: string | null;
+  notificationsEnabled: boolean;
   wakeStreak: number;
   totalWakeDays: number;
   oneSignalSubscriptionId: string | null;
@@ -140,6 +141,7 @@ export class UsersService {
       birthDate: user.birthDate,
       timezone: user.timezone,
       bio: user.bio,
+      notificationsEnabled: user.notificationsEnabled,
       wakeStreak: user.wakeStreak,
       totalWakeDays: user.totalWakeDays,
       oneSignalSubscriptionId: user.oneSignalSubscriptionId,
@@ -172,6 +174,9 @@ export class UsersService {
         ...(dto.birthDate !== undefined ? { birthDate: dto.birthDate } : {}),
         ...(dto.timezone !== undefined ? { timezone: dto.timezone } : {}),
         ...(dto.bio !== undefined ? { bio: dto.bio } : {}),
+        ...(dto.notificationsEnabled !== undefined
+          ? { notificationsEnabled: dto.notificationsEnabled }
+          : {}),
       },
     });
 

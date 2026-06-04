@@ -1,5 +1,6 @@
 import { Type } from 'class-transformer';
 import {
+  IsBoolean,
   IsIn,
   IsInt,
   IsOptional,
@@ -47,6 +48,10 @@ export class UpdateMeDto {
   @IsOptional()
   @IsString()
   bio?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  notificationsEnabled?: boolean;
 }
 
 export class UpdateOneSignalDto {

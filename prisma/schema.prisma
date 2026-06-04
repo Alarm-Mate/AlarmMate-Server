@@ -17,6 +17,7 @@ model User {
   birthDate               String?
   timezone                String?
   bio                     String?
+  notificationsEnabled    Boolean          @default(true)
   wakeStreak              Int              @default(0)
   totalWakeDays           Int              @default(0)
   oneSignalSubscriptionId String?
