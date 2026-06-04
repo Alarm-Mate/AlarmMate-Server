@@ -19,3 +19,25 @@ export class PresignedUrlDto {
   @Max(MAX_UPLOAD_BYTES)
   fileSize!: number;
 }
+
+export const ALLOWED_AUDIO_CONTENT_TYPES = [
+  'audio/mpeg',
+  'audio/mp4',
+  'audio/aac',
+  'audio/wav',
+] as const;
+
+export type AllowedAudioContentType =
+  (typeof ALLOWED_AUDIO_CONTENT_TYPES)[number];
+
+export const MAX_AUDIO_UPLOAD_BYTES = 10 * 1024 * 1024;
+
+export class AudioPresignedUrlDto {
+  @IsIn(ALLOWED_AUDIO_CONTENT_TYPES)
+  contentType!: AllowedAudioContentType;
+
+  @IsInt()
+  @Min(1)
+  @Max(MAX_AUDIO_UPLOAD_BYTES)
+  fileSize!: number;
+}

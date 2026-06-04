@@ -4,7 +4,7 @@ import {
   AuthUser,
   CurrentUser,
 } from '../common/decorators/current-user.decorator';
-import { PresignedUrlDto } from './dto/uploads.dto';
+import { AudioPresignedUrlDto, PresignedUrlDto } from './dto/uploads.dto';
 
 @Controller('uploads')
 export class UploadsController {
@@ -17,5 +17,14 @@ export class UploadsController {
     @Body() dto: PresignedUrlDto,
   ) {
     return this.uploadsService.createPresignedUrl(user.userId, dto);
+  }
+
+  @Post('audio-presigned-url')
+  @HttpCode(HttpStatus.OK)
+  audioPresignedUrl(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: AudioPresignedUrlDto,
+  ) {
+    return this.uploadsService.createAudioPresignedUrl(user.userId, dto);
   }
 }

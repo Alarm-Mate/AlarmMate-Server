@@ -1,7 +1,12 @@
 import { randomUUID } from 'node:crypto';
 import { Injectable } from '@nestjs/common';
 import { S3Service } from '../common/services/s3.service';
-import { AllowedContentType, PresignedUrlDto } from './dto/uploads.dto';
+import {
+  AllowedAudioContentType,
+  AllowedContentType,
+  AudioPresignedUrlDto,
+  PresignedUrlDto,
+} from './dto/uploads.dto';
 
 interface PresignedResponse {
   presignedUrl: string;
@@ -9,10 +14,23 @@ interface PresignedResponse {
   key: string;
 }
 
+interface AudioPresignedResponse {
+  presignedUrl: string;
+  fileUrl: string;
+  key: string;
+}
+
 const EXTENSION_BY_TYPE: Record<AllowedContentType, string> = {
   'image/jpeg': 'jpg',
   'image/png': 'png',
   'image/webp': 'webp',
+};
+
+const AUDIO_EXTENSION_BY_TYPE: Record<AllowedAudioContentType, string> = {
+  'audio/mpeg': 'mp3',
+  'audio/mp4': 'm4a',
+  'audio/aac': 'aac',
+  'audio/wav': 'wav',
 };
 
 @Injectable()
@@ -32,6 +50,23 @@ export class UploadsService {
     return {
       presignedUrl: result.presignedUrl,
       imageUrl: result.imageUrl,
+      key: result.key,
+    };
+  }
+
+  async createAudioPresignedUrl(
+    userId: string,
+    dto: AudioPresignedUrlDto,
+  ): Promise<AudioPresignedResponse> {
+    const extension = AUDIO_EXTENSION_BY_TYPE[dto.contentType];
+    const key = `sounds/${userId}/${randomUUID()}.${extension}`;
+    const result = await this.s3Service.createPresignedUpload(
+      key,
+      dto.contentType,
+    );
+    return {
+      presignedUrl: result.presignedUrl,
+      fileUrl: result.imageUrl,
       key: result.key,
     };
   }
