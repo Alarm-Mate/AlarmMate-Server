@@ -9,6 +9,8 @@ import { PrismaService } from '../src/prisma/prisma.service';
 
 export interface OneSignalMock {
   sendSilentPush: jest.Mock<Promise<void>, [string[], unknown]>;
+  sendNotification: jest.Mock<Promise<void>, [string[], string, string, unknown]>;
+  sendGroupReRing: jest.Mock<Promise<void>, [string[], string, number]>;
 }
 
 export interface Harness {
@@ -20,6 +22,12 @@ export interface Harness {
 export async function createHarness(): Promise<Harness> {
   const oneSignalMock: OneSignalMock = {
     sendSilentPush: jest.fn<Promise<void>, [string[], unknown]>(
+      async () => undefined,
+    ),
+    sendNotification: jest.fn<Promise<void>, [string[], string, string, unknown]>(
+      async () => undefined,
+    ),
+    sendGroupReRing: jest.fn<Promise<void>, [string[], string, number]>(
       async () => undefined,
     ),
   };
@@ -50,7 +58,7 @@ export async function createHarness(): Promise<Harness> {
 
 export async function resetDb(prisma: PrismaService): Promise<void> {
   await prisma.$executeRawUnsafe(
-    'TRUNCATE TABLE "Notification", "WakeRecord", "GroupInvitation", "GroupMember", "Group", "Alarm", "Follow", "RefreshToken", "PasswordResetToken", "EmailVerification", "Sound", "User" RESTART IDENTITY CASCADE',
+    'TRUNCATE TABLE "Notification", "WakeRecord", "GroupRingSession", "GroupInvitation", "GroupMember", "Group", "Alarm", "Follow", "RefreshToken", "PasswordResetToken", "EmailVerification", "Sound", "User" RESTART IDENTITY CASCADE',
   );
 }
 

@@ -115,6 +115,30 @@ model Group {
   alarms      Alarm[]
   invitations GroupInvitation[]
   wakeRecords WakeRecord[]
+  ringSessions GroupRingSession[]
+}
+
+// 그룹 자동 재울림 세션: 알람 시각에 시작되어, 모든 멤버가 깰 때까지(또는 최대 시도까지)
+// 안 깬 멤버에게 주기적으로 재울림 푸시를 보낸다. 그룹 + KST 날짜당 1개.
+model GroupRingSession {
+  id         String            @id @default(cuid())
+  groupId    String
+  date       String // KST yyyy-MM-dd
+  status     RingSessionStatus @default(ACTIVE)
+  attempts   Int               @default(0)
+  startedAt  DateTime          @default(now())
+  lastRingAt DateTime?
+  endedAt    DateTime?
+  group      Group             @relation(fields: [groupId], references: [id], onDelete: Cascade)
+
+  @@unique([groupId, date])
+  @@index([status])
+}
+
+enum RingSessionStatus {
+  ACTIVE
+  COMPLETED
+  EXPIRED
 }
 
 model GroupMember {

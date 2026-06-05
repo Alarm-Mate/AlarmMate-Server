@@ -75,6 +75,42 @@ export class OneSignalService {
     });
   }
 
+  /**
+   * 그룹 자동 재울림 푸시. 안 깬 멤버에게 소리+배너로 다시 알린다.
+   * iOS는 앱을 강제로 열거나 무음을 뚫을 수 없으므로, time-sensitive 알림 + 사운드가
+   * 서버가 할 수 있는 최선의 "재울림"이다. (앱이 켜지면 data로 인앱 오디오 루프 트리거)
+   */
+  async sendGroupReRing(
+    subscriptionIds: string[],
+    groupName: string,
+    attempt: number,
+  ): Promise<void> {
+    const targets = subscriptionIds.filter(
+      (id): id is string => typeof id === 'string' && id.length > 0,
+    );
+    if (targets.length === 0) {
+      return;
+    }
+    const appId = this.configService.get<string>('ONESIGNAL_APP_ID');
+    const apiKey = this.configService.get<string>('ONESIGNAL_API_KEY');
+    if (!appId || !apiKey || appId.startsWith('placeholder')) {
+      this.logger.warn('OneSignal credentials missing; skipping re-ring push');
+      return;
+    }
+    await this.post({
+      app_id: appId,
+      include_player_ids: targets,
+      headings: { en: `${groupName} 메이트가 기다려요` },
+      contents: { en: '아직 못 일어난 메이트가 있어요. 일어났다고 알려주세요!' },
+      content_available: true,
+      priority: 10,
+      ios_interruption_level: 'time-sensitive',
+      ios_sound: 'default',
+      android_sound: 'default',
+      data: { type: 'GROUP_RERING', attempt: String(attempt) },
+    });
+  }
+
   private async post(body: Record<string, unknown>): Promise<void> {
     const apiKey = this.configService.get<string>('ONESIGNAL_API_KEY') ?? '';
     // 신형 키(os_v2_...)는 'Key' 스킴, 레거시 REST API Key는 'Basic' 스킴.

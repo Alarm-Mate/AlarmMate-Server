@@ -1,5 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { AlarmType, NotificationType, Prisma } from '@prisma/client';
+import {
+  AlarmType,
+  NotificationType,
+  Prisma,
+  RingSessionStatus,
+} from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AppException } from '../common/errors/app.exception';
 import { ErrorCode } from '../common/errors/error-code.enum';
@@ -164,6 +169,16 @@ export class WakeService {
     const allMembersWoke = members.every((m) => wokeSet.has(m.userId));
 
     if (allMembersWoke && members.length > 0) {
+      // 전원 기상 → 진행 중인 자동 재울림 세션 즉시 종료 (cron 대기 없이)
+      await this.prisma.groupRingSession.updateMany({
+        where: {
+          groupId,
+          date: toKstDateString(wokeAt),
+          status: RingSessionStatus.ACTIVE,
+        },
+        data: { status: RingSessionStatus.COMPLETED, endedAt: new Date() },
+      });
+
       const group = await this.prisma.group.findUnique({
         where: { id: groupId },
       });
