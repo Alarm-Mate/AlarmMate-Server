@@ -26,9 +26,9 @@ const COLOR = {
 };
 const FONT =
   "-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic','Segoe UI',Roboto,sans-serif";
-// R2 공개 버킷에 올린 네온 로고 (스플래시 워드마크)
+// R2 공개 버킷에 올린 네온 인터락 링 (브랜드 마크)
 const LOGO_URL =
-  'https://pub-13e821930d584429a6934b3ca5b908d4.r2.dev/brand/alarmmate-logo-v2.png';
+  'https://pub-13e821930d584429a6934b3ca5b908d4.r2.dev/brand/alarmmate-rings-v5.png';
 
 @Injectable()
 export class MailService {
@@ -150,7 +150,7 @@ export class MailService {
       <tr><td style="font-size:0;line-height:0;">
         <img src="${LOGO_URL}" width="460" alt="알람메이트" style="display:block;width:100%;max-width:460px;height:auto;border:0;"/>
       </td></tr>
-      <tr><td style="padding:26px 36px 0;">
+      <tr><td style="padding:12px 36px 0;">
         <h1 style="margin:0;font-size:21px;line-height:1.35;font-weight:800;color:${COLOR.text};letter-spacing:-0.4px;">${opts.heading}</h1>
         <p style="margin:9px 0 0;font-size:14px;line-height:1.65;color:${COLOR.muted};">${opts.intro}</p>
       </td></tr>
