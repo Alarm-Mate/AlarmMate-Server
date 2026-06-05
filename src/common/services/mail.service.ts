@@ -17,18 +17,18 @@ const COLOR = {
   bg: '#07080d',
   card: '#0D0E16',
   border: '#20222e',
-  accent: '#f5841a',
+  code: '#FFFFFF',
   text: '#F0F0FF',
   muted: '#9a9aad',
   faint: '#5a5b6a',
-  codeBg: 'rgba(245,132,26,0.08)',
-  codeBorder: 'rgba(245,132,26,0.38)',
+  boxBg: 'rgba(255,255,255,0.04)',
+  boxBorder: 'rgba(255,255,255,0.14)',
 };
 const FONT =
   "-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic','Segoe UI',Roboto,sans-serif";
 // R2 공개 버킷에 올린 네온 로고 (스플래시 워드마크)
 const LOGO_URL =
-  'https://pub-13e821930d584429a6934b3ca5b908d4.r2.dev/brand/alarmmate-logo.png';
+  'https://pub-13e821930d584429a6934b3ca5b908d4.r2.dev/brand/alarmmate-logo-v2.png';
 
 @Injectable()
 export class MailService {
@@ -92,9 +92,9 @@ export class MailService {
     const codeBlock = `
       <tr><td style="padding:0 36px;">
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-          <tr><td align="center" style="background:${COLOR.codeBg};border:1px solid ${COLOR.codeBorder};border-radius:16px;padding:26px 16px;">
+          <tr><td align="center" style="background:${COLOR.boxBg};border:1px solid ${COLOR.boxBorder};border-radius:16px;padding:26px 16px;">
             <div style="font-size:12px;letter-spacing:2px;color:${COLOR.muted};text-transform:uppercase;margin-bottom:14px;">${opts.codeLabel}</div>
-            <div style="font-size:42px;line-height:1;font-weight:800;letter-spacing:12px;color:${COLOR.accent};text-indent:12px;">${opts.code}</div>
+            <div style="font-size:42px;line-height:1;font-weight:800;letter-spacing:12px;color:${COLOR.code};text-indent:12px;">${opts.code}</div>
           </td></tr>
         </table>
       </td></tr>`;
@@ -111,10 +111,10 @@ export class MailService {
     const content = `
       <tr><td style="padding:0 36px;">
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-          <tr><td style="background:${COLOR.codeBg};border:1px solid ${COLOR.codeBorder};border-radius:16px;padding:22px 24px;">
+          <tr><td style="background:${COLOR.boxBg};border:1px solid ${COLOR.boxBorder};border-radius:16px;padding:22px 24px;">
             <div style="font-size:15px;line-height:1.7;color:${COLOR.text};">
               메이트와 함께 일어나는 습관,<br/>
-              <span style="color:${COLOR.accent};font-weight:700;">알람메이트</span>와 시작해봐요.
+              <span style="font-weight:700;">알람메이트</span>와 시작해봐요.
             </div>
           </td></tr>
         </table>
