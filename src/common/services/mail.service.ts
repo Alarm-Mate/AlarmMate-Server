@@ -12,21 +12,23 @@ interface SendMailOptions {
 
 const SENDGRID_ENDPOINT = 'https://api.sendgrid.com/v3/mail/send';
 
-// 알람메이트 브랜드 컬러
+// 알람메이트 브랜드 컬러 (스플래시 기준)
 const COLOR = {
-  bg: '#0a0b12',
-  card: '#14151f',
-  border: '#262838',
+  bg: '#07080d',
+  card: '#0D0E16',
+  border: '#20222e',
   accent: '#f5841a',
-  accent2: '#ff5e7e',
-  text: '#f0f0ff',
+  text: '#F0F0FF',
   muted: '#9a9aad',
   faint: '#5a5b6a',
   codeBg: 'rgba(245,132,26,0.08)',
-  codeBorder: 'rgba(245,132,26,0.40)',
+  codeBorder: 'rgba(245,132,26,0.38)',
 };
 const FONT =
   "-apple-system,BlinkMacSystemFont,'Apple SD Gothic Neo','Malgun Gothic','Segoe UI',Roboto,sans-serif";
+// R2 공개 버킷에 올린 네온 로고 (스플래시 워드마크)
+const LOGO_URL =
+  'https://pub-13e821930d584429a6934b3ca5b908d4.r2.dev/brand/alarmmate-logo.png';
 
 @Injectable()
 export class MailService {
@@ -72,8 +74,8 @@ export class MailService {
   async sendWelcomeEmail(to: string, nickname: string): Promise<void> {
     await this.send({
       to,
-      subject: 'AlarmMate에 오신 걸 환영해요 🎉',
-      text: `${nickname}님, 환영합니다!\n메이트와 함께 일어나는 습관, 알람메이트와 시작해봐요.`,
+      subject: 'AlarmMate에 오신 걸 환영합니다',
+      text: `${nickname}님, 환영합니다.\n메이트와 함께 일어나는 습관, 알람메이트와 시작해봐요.`,
       html: this.welcomeEmail(nickname),
     });
   }
@@ -88,11 +90,11 @@ export class MailService {
     footnote: string;
   }): string {
     const codeBlock = `
-      <tr><td style="padding:8px 36px 4px;">
+      <tr><td style="padding:0 36px;">
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
-          <tr><td align="center" style="background:${COLOR.codeBg};border:1px solid ${COLOR.codeBorder};border-radius:16px;padding:24px 16px;">
-            <div style="font-size:12px;letter-spacing:2px;color:${COLOR.muted};text-transform:uppercase;margin-bottom:12px;">${opts.codeLabel}</div>
-            <div style="font-size:40px;line-height:1;font-weight:800;letter-spacing:12px;color:${COLOR.accent};text-indent:12px;">${opts.code}</div>
+          <tr><td align="center" style="background:${COLOR.codeBg};border:1px solid ${COLOR.codeBorder};border-radius:16px;padding:26px 16px;">
+            <div style="font-size:12px;letter-spacing:2px;color:${COLOR.muted};text-transform:uppercase;margin-bottom:14px;">${opts.codeLabel}</div>
+            <div style="font-size:42px;line-height:1;font-weight:800;letter-spacing:12px;color:${COLOR.accent};text-indent:12px;">${opts.code}</div>
           </td></tr>
         </table>
       </td></tr>`;
@@ -107,25 +109,25 @@ export class MailService {
   private welcomeEmail(nickname: string): string {
     const safeName = this.escape(nickname);
     const content = `
-      <tr><td style="padding:8px 36px 4px;">
+      <tr><td style="padding:0 36px;">
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
           <tr><td style="background:${COLOR.codeBg};border:1px solid ${COLOR.codeBorder};border-radius:16px;padding:22px 24px;">
             <div style="font-size:15px;line-height:1.7;color:${COLOR.text};">
               메이트와 함께 일어나는 습관,<br/>
-              <span style="color:${COLOR.accent};font-weight:700;">알람메이트</span>와 시작해봐요. ⏰
+              <span style="color:${COLOR.accent};font-weight:700;">알람메이트</span>와 시작해봐요.
             </div>
           </td></tr>
         </table>
       </td></tr>`;
     return this.layout({
-      heading: `${safeName}님, 환영해요! 🎉`,
+      heading: `${safeName}님, 환영합니다`,
       intro: '함께 깨워줄 메이트를 찾고, 오늘부터 아침을 바꿔보세요.',
       contentHtml: content,
       footnote: '언제든 앱에서 알람과 메이트를 관리할 수 있어요.',
     });
   }
 
-  /** 공통 브랜드 레이아웃 */
+  /** 공통 브랜드 레이아웃 (네온 로고 + 콘텐츠) */
   private layout(opts: {
     heading: string;
     intro: string;
@@ -142,28 +144,24 @@ export class MailService {
 <title>AlarmMate</title>
 </head>
 <body style="margin:0;padding:0;background:${COLOR.bg};">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${COLOR.bg};padding:32px 12px;font-family:${FONT};">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${COLOR.bg};padding:28px 12px;font-family:${FONT};">
   <tr><td align="center">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:460px;background:${COLOR.card};border:1px solid ${COLOR.border};border-radius:22px;overflow:hidden;">
-      <tr><td style="height:6px;line-height:6px;font-size:6px;background:${COLOR.accent};background:linear-gradient(90deg,${COLOR.accent},${COLOR.accent2});">&nbsp;</td></tr>
-      <tr><td style="padding:34px 36px 0;">
-        <div style="font-size:19px;font-weight:800;color:${COLOR.text};letter-spacing:-0.3px;">
-          <span style="display:inline-block;width:26px;height:26px;line-height:26px;text-align:center;background:${COLOR.codeBg};border:1px solid ${COLOR.codeBorder};border-radius:8px;font-size:14px;vertical-align:middle;margin-right:8px;">⏰</span>
-          <span style="vertical-align:middle;">알람메이트</span>
-        </div>
+      <tr><td style="font-size:0;line-height:0;">
+        <img src="${LOGO_URL}" width="460" alt="알람메이트" style="display:block;width:100%;max-width:460px;height:auto;border:0;"/>
       </td></tr>
-      <tr><td style="padding:22px 36px 0;">
-        <h1 style="margin:0;font-size:23px;line-height:1.35;font-weight:800;color:${COLOR.text};letter-spacing:-0.4px;">${opts.heading}</h1>
-        <p style="margin:10px 0 0;font-size:14px;line-height:1.65;color:${COLOR.muted};">${opts.intro}</p>
+      <tr><td style="padding:26px 36px 0;">
+        <h1 style="margin:0;font-size:21px;line-height:1.35;font-weight:800;color:${COLOR.text};letter-spacing:-0.4px;">${opts.heading}</h1>
+        <p style="margin:9px 0 0;font-size:14px;line-height:1.65;color:${COLOR.muted};">${opts.intro}</p>
       </td></tr>
-      <tr><td style="height:18px;line-height:18px;font-size:18px;">&nbsp;</td></tr>
+      <tr><td style="height:20px;line-height:20px;font-size:20px;">&nbsp;</td></tr>
       ${opts.contentHtml}
-      <tr><td style="padding:16px 36px 30px;">
+      <tr><td style="padding:16px 36px 28px;">
         <p style="margin:0;font-size:13px;line-height:1.6;color:${COLOR.muted};">${opts.footnote}</p>
       </td></tr>
-      <tr><td style="padding:18px 36px 26px;border-top:1px solid ${COLOR.border};">
+      <tr><td style="padding:16px 36px 24px;border-top:1px solid ${COLOR.border};">
         <p style="margin:0;font-size:12px;line-height:1.6;color:${COLOR.faint};">
-          이 메일은 발신 전용이에요 · 문의는 앱에서 가능해요<br/>
+          이 메일은 발신 전용입니다 · 문의는 앱에서 가능해요<br/>
           © 2026 AlarmMate · alarmmates.app
         </p>
       </td></tr>
