@@ -86,6 +86,16 @@ model Alarm {
   longitude Float?
   radius    Int?
   locationTrigger LocationTrigger?
+  // 막차 알람(LAST_TRANSIT): 출발지·목적지 + ODsay 계산 결과(표시용).
+  originName       String?
+  originLat        Float?
+  originLng        Float?
+  destName         String?
+  destLat          Float?
+  destLng          Float?
+  lastDeparture    String? // 막차 출발 "HH:mm"
+  boardingStopName String? // 탑승 정류장/역
+  walkMinutes      Int? // 출발지→정류장 도보(분)
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
   user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -97,6 +107,7 @@ enum AlarmType {
   PERSONAL
   GROUP
   LOCATION
+  LAST_TRANSIT
 }
 
 enum LocationTrigger {

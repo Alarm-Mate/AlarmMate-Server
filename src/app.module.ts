@@ -16,6 +16,7 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { UploadsModule } from './uploads/uploads.module';
 import { SoundsModule } from './sounds/sounds.module';
 import { RingModule } from './ring/ring.module';
+import { TransitModule } from './transit/transit.module';
 import { HealthController } from './health.controller';
 
 @Module({
@@ -36,6 +37,7 @@ import { HealthController } from './health.controller';
     UploadsModule,
     SoundsModule,
     RingModule,
+    TransitModule,
   ],
   providers: [
     {

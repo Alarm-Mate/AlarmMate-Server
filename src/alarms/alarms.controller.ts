@@ -15,6 +15,7 @@ import {
   CurrentUser,
 } from '../common/decorators/current-user.decorator';
 import { CreateAlarmDto, UpdateAlarmDto } from './dto/alarms.dto';
+import { CreateLastTransitDto } from '../transit/dto/transit.dto';
 
 @Controller('alarms')
 export class AlarmsController {
@@ -29,6 +30,16 @@ export class AlarmsController {
   @HttpCode(HttpStatus.CREATED)
   create(@CurrentUser() user: AuthUser, @Body() dto: CreateAlarmDto) {
     return this.alarmsService.create(user.userId, dto);
+  }
+
+  /** 막차 알람: 출발지·목적지 → 막차 시각 계산 → 알람 생성. */
+  @Post('last-transit')
+  @HttpCode(HttpStatus.CREATED)
+  createLastTransit(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: CreateLastTransitDto,
+  ) {
+    return this.alarmsService.createLastTransit(user.userId, dto);
   }
 
   @Patch(':alarmId')

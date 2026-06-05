@@ -4,6 +4,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AppException } from '../common/errors/app.exception';
 import { ErrorCode } from '../common/errors/error-code.enum';
 import { CreateAlarmDto, UpdateAlarmDto } from './dto/alarms.dto';
+import { LastTransitService } from '../transit/last-transit.service';
+import { CreateLastTransitDto } from '../transit/dto/transit.dto';
 
 interface AlarmView {
   id: string;
@@ -21,13 +23,52 @@ interface AlarmView {
   longitude: number | null;
   radius: number | null;
   locationTrigger: LocationTrigger | null;
+  // 막차 알람 표시용
+  originName: string | null;
+  destName: string | null;
+  lastDeparture: string | null;
+  boardingStopName: string | null;
+  walkMinutes: number | null;
   createdAt: string;
   updatedAt: string;
 }
 
 @Injectable()
 export class AlarmsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly lastTransitService: LastTransitService,
+  ) {}
+
+  /** 막차 알람 생성: 출발지·목적지 → 막차 계산 → fireTime에 LAST_TRANSIT 알람 생성. */
+  async createLastTransit(
+    userId: string,
+    dto: CreateLastTransitDto,
+  ): Promise<AlarmView> {
+    const computation = await this.lastTransitService.compute(
+      { name: dto.originName, lat: dto.originLat, lng: dto.originLng },
+      { name: dto.destName, lat: dto.destLat, lng: dto.destLng },
+    );
+    const alarm = await this.prisma.alarm.create({
+      data: {
+        userId,
+        name: `막차 · ${dto.destName}`,
+        time: computation.fireTime,
+        days: [], // 오늘 밤 1회성
+        type: AlarmType.LAST_TRANSIT,
+        originName: dto.originName,
+        originLat: dto.originLat,
+        originLng: dto.originLng,
+        destName: dto.destName,
+        destLat: dto.destLat,
+        destLng: dto.destLng,
+        lastDeparture: computation.lastDeparture,
+        boardingStopName: computation.boardingStopName,
+        walkMinutes: computation.walkMinutes,
+      },
+    });
+    return this.toView(alarm);
+  }
 
   async list(userId: string): Promise<AlarmView[]> {
     const alarms = await this.prisma.alarm.findMany({
@@ -182,6 +223,11 @@ export class AlarmsService {
       longitude: alarm.longitude,
       radius: alarm.radius,
       locationTrigger: alarm.locationTrigger,
+      originName: alarm.originName,
+      destName: alarm.destName,
+      lastDeparture: alarm.lastDeparture,
+      boardingStopName: alarm.boardingStopName,
+      walkMinutes: alarm.walkMinutes,
       createdAt: alarm.createdAt.toISOString(),
       updatedAt: alarm.updatedAt.toISOString(),
     };
