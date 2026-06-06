@@ -202,6 +202,66 @@ describe('last-transit alarm', () => {
     expect(res.status).toBe(400);
   });
 
+  async function createApptAlarm(): Promise<string> {
+    const res = await request(server(h.app))
+      .post('/alarms/appointment')
+      .set('Authorization', `Bearer ${user.accessToken}`)
+      .send({
+        name: '회의',
+        appointmentTime: '14:00',
+        prepMinutes: 30,
+        vibration: true,
+        originName: '현재 위치',
+        originLat: 35.1693,
+        originLng: 129.1295,
+        destName: '서면',
+        destLat: 35.1577,
+        destLng: 129.0595,
+      });
+    return expectSuccess(res.body as ApiBody<AlarmView>).id;
+  }
+
+  it('appointment refines at 2h (stage1) then 30m (stage2)', async () => {
+    const id = await createApptAlarm();
+    await h.prisma.user.update({
+      where: { id: user.user.id },
+      data: { oneSignalSubscriptionId: 'ap-sub' },
+    });
+
+    // 발사 90분 전 → stage1 (2시간 이내, 30분 밖)
+    const now = new Date();
+    await h.prisma.alarm.update({
+      where: { id },
+      data: { time: kstPlus(now, 90), appointmentRefineStage: 0 },
+    });
+    expect(await refine.refineDue(now)).toBe(1);
+    let a = await h.prisma.alarm.findUnique({ where: { id } });
+    expect(a?.appointmentRefineStage).toBe(1);
+    expect(h.oneSignal.sendDataPush).toHaveBeenCalledTimes(1);
+    expect(h.oneSignal.sendDataPush.mock.calls[0][1].type).toBe('APPOINTMENT_UPDATED');
+
+    // 같은 윈도우 재호출 → 중복 안 함
+    expect(await refine.refineDue(now)).toBe(0);
+
+    // 발사 20분 전 → stage2
+    await h.prisma.alarm.update({ where: { id }, data: { time: kstPlus(now, 20) } });
+    expect(await refine.refineDue(now)).toBe(1);
+    a = await h.prisma.alarm.findUnique({ where: { id } });
+    expect(a?.appointmentRefineStage).toBe(2);
+  });
+
+  it('appointment does NOT refine more than 2h before firing', async () => {
+    const id = await createApptAlarm();
+    const now = new Date();
+    await h.prisma.alarm.update({
+      where: { id },
+      data: { time: kstPlus(now, 200), appointmentRefineStage: 0 }, // 200분 후
+    });
+    expect(await refine.refineDue(now)).toBe(0);
+    const a = await h.prisma.alarm.findUnique({ where: { id } });
+    expect(a?.appointmentRefineStage).toBe(0);
+  });
+
   it('refineDue does NOT refine an alarm still far from firing', async () => {
     const alarmId = await createTransitAlarm();
     const now = new Date();

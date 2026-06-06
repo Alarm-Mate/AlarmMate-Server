@@ -101,6 +101,7 @@ model Alarm {
   appointmentTime  String? // 약속 시각 "HH:mm"
   prepMinutes      Int? // 준비 시간(분)
   travelMinutes    Int? // 이동 시간(분, 계산값)
+  appointmentRefineStage Int @default(0) // 약속 재계산 단계: 0=없음, 1=2h전, 2=30m전
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
   user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
