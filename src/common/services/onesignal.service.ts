@@ -111,6 +111,31 @@ export class OneSignalService {
     });
   }
 
+  /** 화면 표시 없는 데이터 전용 푸시(앱 깨워 동기화). 막차 재계산 알림 등에 사용. */
+  async sendDataPush(
+    subscriptionIds: string[],
+    data: Record<string, string>,
+  ): Promise<void> {
+    const targets = subscriptionIds.filter(
+      (id): id is string => typeof id === 'string' && id.length > 0,
+    );
+    if (targets.length === 0) {
+      return;
+    }
+    const appId = this.configService.get<string>('ONESIGNAL_APP_ID');
+    const apiKey = this.configService.get<string>('ONESIGNAL_API_KEY');
+    if (!appId || !apiKey || appId.startsWith('placeholder')) {
+      this.logger.warn('OneSignal credentials missing; skipping data push');
+      return;
+    }
+    await this.post({
+      app_id: appId,
+      include_player_ids: targets,
+      content_available: true,
+      data,
+    });
+  }
+
   private async post(body: Record<string, unknown>): Promise<void> {
     const apiKey = this.configService.get<string>('ONESIGNAL_API_KEY') ?? '';
     // 신형 키(os_v2_...)는 'Key' 스킴, 레거시 REST API Key는 'Basic' 스킴.

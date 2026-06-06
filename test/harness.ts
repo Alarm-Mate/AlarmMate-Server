@@ -11,6 +11,7 @@ export interface OneSignalMock {
   sendSilentPush: jest.Mock<Promise<void>, [string[], unknown]>;
   sendNotification: jest.Mock<Promise<void>, [string[], string, string, unknown]>;
   sendGroupReRing: jest.Mock<Promise<void>, [string[], string, number]>;
+  sendDataPush: jest.Mock<Promise<void>, [string[], Record<string, string>]>;
 }
 
 export interface Harness {
@@ -28,6 +29,9 @@ export async function createHarness(): Promise<Harness> {
       async () => undefined,
     ),
     sendGroupReRing: jest.fn<Promise<void>, [string[], string, number]>(
+      async () => undefined,
+    ),
+    sendDataPush: jest.fn<Promise<void>, [string[], Record<string, string>]>(
       async () => undefined,
     ),
   };
