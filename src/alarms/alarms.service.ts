@@ -5,7 +5,11 @@ import { AppException } from '../common/errors/app.exception';
 import { ErrorCode } from '../common/errors/error-code.enum';
 import { CreateAlarmDto, UpdateAlarmDto } from './dto/alarms.dto';
 import { LastTransitService } from '../transit/last-transit.service';
-import { CreateLastTransitDto } from '../transit/dto/transit.dto';
+import {
+  CreateAppointmentDto,
+  CreateLastTransitDto,
+} from '../transit/dto/transit.dto';
+import { subtractMinutes } from '../transit/last-transit.service';
 
 interface AlarmView {
   id: string;
@@ -29,6 +33,10 @@ interface AlarmView {
   lastDeparture: string | null;
   boardingStopName: string | null;
   walkMinutes: number | null;
+  // 약속 알람 표시용
+  appointmentTime: string | null;
+  prepMinutes: number | null;
+  travelMinutes: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -65,6 +73,41 @@ export class AlarmsService {
         lastDeparture: computation.lastDeparture,
         boardingStopName: computation.boardingStopName,
         walkMinutes: computation.walkMinutes,
+      },
+    });
+    return this.toView(alarm);
+  }
+
+  /** 약속 알람 생성: 약속시간 − 이동시간 − 준비시간 = fireTime 에 알람 생성. */
+  async createAppointment(
+    userId: string,
+    dto: CreateAppointmentDto,
+  ): Promise<AlarmView> {
+    const travelMinutes = await this.lastTransitService.computeTravelMinutes(
+      { name: dto.originName, lat: dto.originLat, lng: dto.originLng },
+      { name: dto.destName, lat: dto.destLat, lng: dto.destLng },
+    );
+    const fireTime = subtractMinutes(
+      dto.appointmentTime,
+      travelMinutes + dto.prepMinutes,
+    );
+    const alarm = await this.prisma.alarm.create({
+      data: {
+        userId,
+        name: dto.name,
+        time: fireTime,
+        days: [],
+        vibration: dto.vibration,
+        type: AlarmType.APPOINTMENT,
+        originName: dto.originName,
+        originLat: dto.originLat,
+        originLng: dto.originLng,
+        destName: dto.destName,
+        destLat: dto.destLat,
+        destLng: dto.destLng,
+        appointmentTime: dto.appointmentTime,
+        prepMinutes: dto.prepMinutes,
+        travelMinutes,
       },
     });
     return this.toView(alarm);
@@ -228,6 +271,9 @@ export class AlarmsService {
       lastDeparture: alarm.lastDeparture,
       boardingStopName: alarm.boardingStopName,
       walkMinutes: alarm.walkMinutes,
+      appointmentTime: alarm.appointmentTime,
+      prepMinutes: alarm.prepMinutes,
+      travelMinutes: alarm.travelMinutes,
       createdAt: alarm.createdAt.toISOString(),
       updatedAt: alarm.updatedAt.toISOString(),
     };

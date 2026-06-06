@@ -37,6 +37,9 @@ interface AlarmView {
   lastDeparture: string | null;
   boardingStopName: string | null;
   walkMinutes: number | null;
+  appointmentTime: string | null;
+  prepMinutes: number | null;
+  travelMinutes: number | null;
 }
 
 describe('last-transit alarm', () => {
@@ -150,6 +153,53 @@ describe('last-transit alarm', () => {
     expect(subs).toEqual(['lt-sub']);
     expect(data.type).toBe('LAST_TRANSIT_UPDATED');
     expect(data.alarmId).toBe(alarmId);
+  });
+
+  it('POST /alarms/appointment creates APPOINTMENT alarm at appt − travel − prep', async () => {
+    const res = await request(server(h.app))
+      .post('/alarms/appointment')
+      .set('Authorization', `Bearer ${user.accessToken}`)
+      .send({
+        name: '회의',
+        appointmentTime: '14:00',
+        prepMinutes: 30,
+        vibration: true,
+        originName: '현재 위치',
+        originLat: 35.1693,
+        originLng: 129.1295,
+        destName: '서면 회의실',
+        destLat: 35.1577,
+        destLng: 129.0595,
+      });
+    expect(res.status).toBe(201);
+    const alarm = expectSuccess(res.body as ApiBody<AlarmView>);
+    expect(alarm.type).toBe('APPOINTMENT');
+    expect(alarm.name).toBe('회의');
+    expect(alarm.appointmentTime).toBe('14:00');
+    expect(alarm.prepMinutes).toBe(30);
+    expect(alarm.travelMinutes).toBeGreaterThanOrEqual(5);
+    expect(alarm.time).toMatch(/^\d{2}:\d{2}$/);
+    // fireTime = 14:00 − (travel + 30) → 14:00보다 이름
+    expect(alarm.time).not.toBe('14:00');
+  });
+
+  it('POST /alarms/appointment rejects bad appointmentTime', async () => {
+    const res = await request(server(h.app))
+      .post('/alarms/appointment')
+      .set('Authorization', `Bearer ${user.accessToken}`)
+      .send({
+        name: 'x',
+        appointmentTime: '25:99',
+        prepMinutes: 10,
+        vibration: true,
+        originName: 'a',
+        originLat: 35.1,
+        originLng: 129.1,
+        destName: 'b',
+        destLat: 35.2,
+        destLng: 129.2,
+      });
+    expect(res.status).toBe(400);
   });
 
   it('refineDue does NOT refine an alarm still far from firing', async () => {

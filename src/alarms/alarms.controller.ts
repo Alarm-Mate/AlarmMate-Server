@@ -15,7 +15,10 @@ import {
   CurrentUser,
 } from '../common/decorators/current-user.decorator';
 import { CreateAlarmDto, UpdateAlarmDto } from './dto/alarms.dto';
-import { CreateLastTransitDto } from '../transit/dto/transit.dto';
+import {
+  CreateAppointmentDto,
+  CreateLastTransitDto,
+} from '../transit/dto/transit.dto';
 
 @Controller('alarms')
 export class AlarmsController {
@@ -40,6 +43,16 @@ export class AlarmsController {
     @Body() dto: CreateLastTransitDto,
   ) {
     return this.alarmsService.createLastTransit(user.userId, dto);
+  }
+
+  /** 약속 알람: 약속시간·준비시간·장소 → 이동시간 계산 → 알람 생성. */
+  @Post('appointment')
+  @HttpCode(HttpStatus.CREATED)
+  createAppointment(
+    @CurrentUser() user: AuthUser,
+    @Body() dto: CreateAppointmentDto,
+  ) {
+    return this.alarmsService.createAppointment(user.userId, dto);
   }
 
   @Patch(':alarmId')

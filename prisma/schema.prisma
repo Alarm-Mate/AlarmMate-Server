@@ -97,6 +97,10 @@ model Alarm {
   boardingStopName String? // 탑승 정류장/역
   walkMinutes      Int? // 출발지→정류장 도보(분)
   lastTransitRefined Boolean @default(false) // 발사 30분 전 재계산 완료 여부
+  // 약속 알람(APPOINTMENT)
+  appointmentTime  String? // 약속 시각 "HH:mm"
+  prepMinutes      Int? // 준비 시간(분)
+  travelMinutes    Int? // 이동 시간(분, 계산값)
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
   user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -109,6 +113,7 @@ enum AlarmType {
   GROUP
   LOCATION
   LAST_TRANSIT
+  APPOINTMENT
 }
 
 enum LocationTrigger {

@@ -111,6 +111,42 @@ export class LastTransitService {
     };
   }
 
+  /**
+   * 출발지 → 목적지 총 이동 시간(분). 약속 알람용.
+   * ODsay 경로 총 소요시간 사용, 키 없으면 거리 기반 추정.
+   */
+  async computeTravelMinutes(origin: TransitPoint, dest: TransitPoint): Promise<number> {
+    const apiKey = this.config.get<string>('ODSAY_API_KEY');
+    if (apiKey && !apiKey.startsWith('placeholder')) {
+      const params = new URLSearchParams({
+        apiKey,
+        SX: String(origin.lng),
+        SY: String(origin.lat),
+        EX: String(dest.lng),
+        EY: String(dest.lat),
+        OPT: '0',
+      });
+      try {
+        const res = await fetch(`${ODSAY_PATH_URL}?${params.toString()}`);
+        if (res.ok) {
+          const json = (await res.json()) as {
+            result?: { path?: Array<{ info?: { totalTime?: number } }> };
+          };
+          const total = json.result?.path?.[0]?.info?.totalTime;
+          if (typeof total === 'number' && total > 0) return total;
+        }
+      } catch (error) {
+        this.logger.error(
+          'ODsay travel time error',
+          error instanceof Error ? error.stack : String(error),
+        );
+      }
+    }
+    // 추정: 직선거리 → 대중교통 대략 속도(도보 포함 ~18km/h)
+    const d = haversineM(origin.lat, origin.lng, dest.lat, dest.lng);
+    return Math.max(5, Math.round(d / 300));
+  }
+
   private walkMinutesByDistance(origin: TransitPoint, dest: TransitPoint): number {
     const d = haversineM(origin.lat, origin.lng, dest.lat, dest.lng);
     // 정류장까지 도보는 보통 출발지 근처 → 전체 거리의 일부로 보수적 추정.
