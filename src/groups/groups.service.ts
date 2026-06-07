@@ -226,6 +226,10 @@ export class GroupsService {
       );
       const uniqueIds = Array.from(new Set(targetIds));
       const expiresAt = new Date(Date.now() + INVITE_TTL_MS);
+      const inviter = await tx.user.findUnique({
+        where: { id: userId },
+        select: { nickname: true },
+      });
 
       for (const targetId of uniqueIds) {
         const exists = await tx.user.findUnique({ where: { id: targetId } });
@@ -248,6 +252,7 @@ export class GroupsService {
               groupId: created.id,
               groupName: created.name,
               invitedById: userId,
+              fromNickname: inviter?.nickname ?? '',
             },
           },
         });
@@ -337,6 +342,10 @@ export class GroupsService {
     const group = await this.prisma.group.findUnique({
       where: { id: groupId },
     });
+    const inviter = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { nickname: true },
+    });
 
     await this.prisma.groupInvitation.upsert({
       where: { groupId_userId: { groupId, userId: targetUserId } },
@@ -361,6 +370,7 @@ export class GroupsService {
         groupId,
         groupName: group?.name ?? '',
         invitedById: userId,
+        fromNickname: inviter?.nickname ?? '',
       },
     );
 

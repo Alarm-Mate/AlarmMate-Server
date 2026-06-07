@@ -48,10 +48,14 @@ export class FollowsService {
 
     await this.prisma.follow.create({ data: { followerId, followingId } });
 
+    const follower = await this.prisma.user.findUnique({
+      where: { id: followerId },
+      select: { nickname: true },
+    });
     await this.notificationsService.create(
       followingId,
       NotificationType.NEW_FOLLOWER,
-      { followerId },
+      { followerId, followerNickname: follower?.nickname ?? '' },
     );
 
     return { following: true };

@@ -199,8 +199,13 @@ export class WakeService {
     if (followerIds.length === 0) {
       return;
     }
+    const waker = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { nickname: true },
+    });
     const payload: Prisma.InputJsonValue = {
       userId,
+      nickname: waker?.nickname ?? '',
       wokeAt: wokeAt.toISOString(),
     };
     await this.notificationsService.createMany(
