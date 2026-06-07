@@ -8,11 +8,15 @@ import {
   IsLongitude,
   IsOptional,
   IsString,
+  Matches,
   Max,
   Min,
   MinLength,
 } from 'class-validator';
 import { AlarmType, LocationTrigger } from '@prisma/client';
+
+// HH:mm (00:00~23:59)
+export const HHMM_REGEX = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 export type CreatableAlarmType =
   | typeof AlarmType.PERSONAL
@@ -33,6 +37,7 @@ export class CreateAlarmDto {
 
   @IsOptional()
   @IsString()
+  @Matches(HHMM_REGEX, { message: 'time must be HH:mm' })
   time?: string;
 
   @IsOptional()
@@ -87,6 +92,7 @@ export class UpdateAlarmDto {
 
   @IsOptional()
   @IsString()
+  @Matches(HHMM_REGEX, { message: 'time must be HH:mm' })
   time?: string;
 
   @IsOptional()

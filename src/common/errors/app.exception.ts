@@ -24,6 +24,7 @@ const ERROR_STATUS_MAP: Record<ErrorCode, HttpStatus> = {
   [ErrorCode.USER_NOT_FOUND]: HttpStatus.NOT_FOUND,
   [ErrorCode.NOTIFICATION_NOT_FOUND]: HttpStatus.NOT_FOUND,
   [ErrorCode.SOUND_NOT_FOUND]: HttpStatus.NOT_FOUND,
+  [ErrorCode.TOO_MANY_REQUESTS]: HttpStatus.TOO_MANY_REQUESTS,
   [ErrorCode.VALIDATION_ERROR]: HttpStatus.BAD_REQUEST,
   [ErrorCode.INTERNAL_SERVER_ERROR]: HttpStatus.INTERNAL_SERVER_ERROR,
 };
@@ -51,6 +52,7 @@ const DEFAULT_MESSAGE: Record<ErrorCode, string> = {
   [ErrorCode.USER_NOT_FOUND]: 'User not found',
   [ErrorCode.NOTIFICATION_NOT_FOUND]: 'Notification not found',
   [ErrorCode.SOUND_NOT_FOUND]: 'Sound not found',
+  [ErrorCode.TOO_MANY_REQUESTS]: '잠시 후 다시 시도해주세요',
   [ErrorCode.VALIDATION_ERROR]: 'Validation error',
   [ErrorCode.INTERNAL_SERVER_ERROR]: 'Internal server error',
 };

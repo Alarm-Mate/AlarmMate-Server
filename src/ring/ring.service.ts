@@ -109,7 +109,13 @@ export class RingService {
         members: {
           where: { isEnabled: true },
           include: {
-            user: { select: { id: true, oneSignalSubscriptionId: true } },
+            user: {
+              select: {
+                id: true,
+                oneSignalSubscriptionId: true,
+                notificationsEnabled: true,
+              },
+            },
           },
         },
       },
@@ -147,6 +153,7 @@ export class RingService {
     }
 
     const subscriptionIds = nonWoke
+      .filter((m) => m.user.notificationsEnabled)
       .map((m) => m.user.oneSignalSubscriptionId)
       .filter((id): id is string => typeof id === 'string' && id.length > 0);
     const attempt = session.attempts + 1;

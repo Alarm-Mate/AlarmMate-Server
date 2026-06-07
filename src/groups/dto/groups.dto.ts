@@ -6,10 +6,13 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  Matches,
   Max,
   Min,
   MinLength,
 } from 'class-validator';
+
+const HHMM_REGEX = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 export class CreateGroupDto {
   @IsString()
@@ -17,6 +20,7 @@ export class CreateGroupDto {
   name!: string;
 
   @IsString()
+  @Matches(HHMM_REGEX, { message: 'alarmTime must be HH:mm' })
   alarmTime!: string;
 
   @IsArray()
@@ -40,6 +44,7 @@ export class UpdateGroupDto {
 
   @IsOptional()
   @IsString()
+  @Matches(HHMM_REGEX, { message: 'alarmTime must be HH:mm' })
   alarmTime?: string;
 
   @IsOptional()

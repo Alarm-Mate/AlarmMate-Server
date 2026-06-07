@@ -30,6 +30,12 @@ export class NotificationsService {
     type: NotificationType,
     payload: Prisma.InputJsonValue,
   ): Promise<void> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { notificationsEnabled: true },
+    });
+    // 알림 비활성 사용자는 인앱 알림도 생성하지 않는다.
+    if (!user?.notificationsEnabled) return;
     await this.prisma.notification.create({
       data: { userId, type, payload },
     });
@@ -45,7 +51,16 @@ export class NotificationsService {
     if (entries.length === 0) {
       return;
     }
-    await this.prisma.notification.createMany({ data: entries });
+    // 알림 비활성 사용자는 제외.
+    const userIds = [...new Set(entries.map((e) => e.userId))];
+    const enabled = await this.prisma.user.findMany({
+      where: { id: { in: userIds }, notificationsEnabled: true },
+      select: { id: true },
+    });
+    const allowed = new Set(enabled.map((u) => u.id));
+    const filtered = entries.filter((e) => allowed.has(e.userId));
+    if (filtered.length === 0) return;
+    await this.prisma.notification.createMany({ data: filtered });
   }
 
   async list(

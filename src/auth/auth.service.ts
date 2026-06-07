@@ -31,6 +31,8 @@ interface AuthResult extends TokenPair {
 const PASSWORD_REGEX = /^(?=.*[A-Za-z])(?=.*\d).{8,}$/;
 const REFRESH_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const RESET_TTL_MS = 10 * 60 * 1000;
+// 인증/재설정 코드 재발송 최소 간격(스팸·무차별 대입 완화).
+const CODE_COOLDOWN_MS = 60 * 1000;
 
 @Injectable()
 export class AuthService {
@@ -94,6 +96,14 @@ export class AuthService {
     const existing = await this.prisma.user.findUnique({ where: { email } });
     if (existing) {
       throw new AppException(ErrorCode.EMAIL_ALREADY_EXISTS);
+    }
+    // 재발송 쿨다운: 최근 발송이 60초 이내면 거부.
+    const recent = await this.prisma.emailVerification.findFirst({
+      where: { email },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (recent && Date.now() - recent.createdAt.getTime() < CODE_COOLDOWN_MS) {
+      throw new AppException(ErrorCode.TOO_MANY_REQUESTS);
     }
     await this.prisma.emailVerification.deleteMany({ where: { email } });
     const code = String(randomInt(100000, 1000000));
@@ -176,6 +186,14 @@ export class AuthService {
       where: { email: dto.email },
     });
     if (user) {
+      // 재발송 쿨다운: 최근 발급이 60초 이내면 거부.
+      const recent = await this.prisma.passwordResetToken.findFirst({
+        where: { userId: user.id },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (recent && Date.now() - recent.createdAt.getTime() < CODE_COOLDOWN_MS) {
+        throw new AppException(ErrorCode.TOO_MANY_REQUESTS);
+      }
       // 기존 미사용 코드 정리 후 새 6자리 코드 발급
       await this.prisma.passwordResetToken.deleteMany({ where: { userId: user.id } });
       const code = String(randomInt(100000, 1000000));

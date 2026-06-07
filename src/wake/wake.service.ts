@@ -126,12 +126,18 @@ export class WakeService {
     const members = await this.prisma.groupMember.findMany({
       where: { groupId },
       include: {
-        user: { select: { id: true, oneSignalSubscriptionId: true } },
+        user: {
+          select: {
+            id: true,
+            oneSignalSubscriptionId: true,
+            notificationsEnabled: true,
+          },
+        },
       },
     });
 
     const subscriptionIds = members
-      .filter((m) => m.userId !== userId)
+      .filter((m) => m.userId !== userId && m.user.notificationsEnabled)
       .map((m) => m.user.oneSignalSubscriptionId)
       .filter((id): id is string => typeof id === 'string' && id.length > 0);
 
