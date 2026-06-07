@@ -180,7 +180,9 @@ export class LastTransitService {
       const tt = json.result?.OdsayTimeTable;
       if (!tt) return null;
       const dir = wayCode === 2 ? tt.bwd : tt.fwd;
-      const times = collectHHMM(dir).concat(collectHHMM(tt.fwd), collectHHMM(tt.bwd));
+      // 선택 방향의 시간표만 사용. 해당 방향이 비어 있을 때만 양방향으로 폴백.
+      let times = collectHHMM(dir);
+      if (times.length === 0) times = collectHHMM(tt.fwd).concat(collectHHMM(tt.bwd));
       if (times.length === 0) return null;
       let maxMin = -1;
       let best: string | null = null;

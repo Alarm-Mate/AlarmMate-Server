@@ -83,7 +83,13 @@ describe('group auto re-ring', () => {
       where: { userId, groupId: group.id, type: 'GROUP' },
     });
     await h.prisma.wakeRecord.create({
-      data: { userId, alarmId: alarm!.id, groupId: group.id, wokeAt: now },
+      data: {
+        userId,
+        alarmId: alarm!.id,
+        groupId: group.id,
+        date: new Date(now.getTime() + 9 * 3600 * 1000).toISOString().slice(0, 10),
+        wokeAt: now,
+      },
     });
   }
 

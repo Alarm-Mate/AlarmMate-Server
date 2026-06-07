@@ -111,6 +111,7 @@ describe('wake', () => {
       data: {
         userId: alice.user.id,
         alarmId: alarm.id,
+        date: new Date(kstNoonUtc(1).getTime() + 9 * 3600 * 1000).toISOString().slice(0, 10),
         wokeAt: kstNoonUtc(1),
       },
     });
@@ -133,6 +134,7 @@ describe('wake', () => {
       data: {
         userId: alice.user.id,
         alarmId: alarm.id,
+        date: new Date(kstNoonUtc(3).getTime() + 9 * 3600 * 1000).toISOString().slice(0, 10),
         wokeAt: kstNoonUtc(3),
       },
     });

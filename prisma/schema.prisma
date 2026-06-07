@@ -216,13 +216,14 @@ model WakeRecord {
   userId    String
   alarmId   String
   groupId   String?
+  date      String // KST yyyy-MM-dd (하루 1건, 날짜별 이력 보존)
   wokeAt    DateTime
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  alarm     Alarm    @relation(fields: [alarmId], references: [id])
+  alarm     Alarm    @relation(fields: [alarmId], references: [id], onDelete: Cascade)
   group     Group?   @relation(fields: [groupId], references: [id])
 
-  @@unique([userId, alarmId])
+  @@unique([userId, alarmId, date])
 }
 
 model Notification {

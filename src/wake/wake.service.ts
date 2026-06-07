@@ -43,37 +43,23 @@ export class WakeService {
     }
 
     const wokeAt = dto.wokeAt ? new Date(dto.wokeAt) : new Date();
-    const { start, end } = getKstDayBoundsUtc(wokeAt);
+    const date = toKstDateString(wokeAt);
 
-    const existingToday = await this.prisma.wakeRecord.findFirst({
-      where: {
-        userId,
-        alarmId: dto.alarmId,
-        wokeAt: { gte: start, lte: end },
-      },
+    // 같은 알람·같은 KST 날짜에 이미 기록이 있으면 중복 거부(날짜별 1건).
+    const existingToday = await this.prisma.wakeRecord.findUnique({
+      where: { userId_alarmId_date: { userId, alarmId: dto.alarmId, date } },
     });
     if (existingToday) {
       throw new AppException(ErrorCode.ALREADY_WOKE_TODAY);
     }
 
-    const existingForAlarm = await this.prisma.wakeRecord.findUnique({
-      where: { userId_alarmId: { userId, alarmId: dto.alarmId } },
-    });
-
     const groupId = alarm.type === AlarmType.GROUP ? alarm.groupId : null;
 
     const wokeYesterday = await this.wokeOnPreviousKstDay(userId, wokeAt);
 
-    const record = await this.prisma.$transaction(async (tx) => {
-      if (existingForAlarm) {
-        return tx.wakeRecord.update({
-          where: { id: existingForAlarm.id },
-          data: { wokeAt, groupId },
-        });
-      }
-      return tx.wakeRecord.create({
-        data: { userId, alarmId: dto.alarmId, groupId, wokeAt },
-      });
+    // 날짜별로 항상 새 기록을 남겨 과거 기상 이력을 보존한다.
+    const record = await this.prisma.wakeRecord.create({
+      data: { userId, alarmId: dto.alarmId, groupId, date, wokeAt },
     });
 
     const { wakeStreak, totalWakeDays } = await this.updateStreak(
