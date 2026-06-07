@@ -78,8 +78,8 @@ export class AuthController {
 
   @Post('logout')
   @HttpCode(HttpStatus.OK)
-  logout(@Body() dto: LogoutDto) {
-    return this.authService.logout(dto.refreshToken);
+  logout(@CurrentUser() user: AuthUser, @Body() dto: LogoutDto) {
+    return this.authService.logout(user.userId, dto.refreshToken);
   }
 
   @Delete('withdraw')

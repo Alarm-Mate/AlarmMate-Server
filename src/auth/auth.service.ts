@@ -174,8 +174,14 @@ export class AuthService {
     return this.issueAndStore(payload.sub, payload.email);
   }
 
-  async logout(refreshToken: string): Promise<{ success: boolean }> {
-    await this.prisma.refreshToken.deleteMany({ where: { token: refreshToken } });
+  async logout(
+    userId: string,
+    refreshToken: string,
+  ): Promise<{ success: boolean }> {
+    // 본인 소유의 리프레시 토큰만 폐기.
+    await this.prisma.refreshToken.deleteMany({
+      where: { token: refreshToken, userId },
+    });
     return { success: true };
   }
 
