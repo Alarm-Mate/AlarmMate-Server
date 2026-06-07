@@ -20,6 +20,8 @@ export interface LastTransitComputation {
 const BUFFER_MIN = 5; // 여유 시간
 const WALK_SPEED_M_PER_MIN = 67; // 약 4km/h
 const ODSAY_PATH_URL = 'https://api.odsay.com/v1/api/searchPubTransPathT';
+const ODSAY_SUBWAY_TT_URL = 'https://api.odsay.com/v1/api/subwayTimeTable';
+const DEFAULT_LAST_DEPARTURE = '23:50';
 
 @Injectable()
 export class LastTransitService {
@@ -71,6 +73,8 @@ export class LastTransitService {
               trafficType: number; // 1=지하철 2=버스 3=도보
               sectionTime?: number; // 분
               startName?: string;
+              startID?: number; // ODsay 역 ID(지하철)
+              wayCode?: number; // 방향 1/2
             }>;
           }>;
         };
@@ -82,8 +86,12 @@ export class LastTransitService {
       const firstTransit = first.subPath.find((s) => s.trafficType === 1 || s.trafficType === 2);
       const walkMinutes = firstWalk?.sectionTime ?? this.walkMinutesByDistance(origin, dest);
       const boardingStopName = firstTransit?.startName ?? '가까운 정류장';
-      // TODO: 정류장 시간표 API로 실제 막차 시각. 임시 기본값.
-      const lastDeparture = '23:50';
+      // 첫 탑승이 지하철이면 해당 역 시간표로 실제 막차 시각을 조회. 실패 시 기본값.
+      let lastDeparture = DEFAULT_LAST_DEPARTURE;
+      if (firstTransit?.trafficType === 1 && firstTransit.startID) {
+        const real = await this.getSubwayLastTrain(firstTransit.startID, firstTransit.wayCode ?? 1, apiKey);
+        if (real) lastDeparture = real;
+      }
       return {
         lastDeparture,
         boardingStopName,
@@ -102,7 +110,7 @@ export class LastTransitService {
   /** 키 없을 때 추정: 도보는 직선거리 기반, 막차는 보수적 기본값. */
   private estimate(origin: TransitPoint, dest: TransitPoint): LastTransitComputation {
     const walkMinutes = Math.min(20, this.walkMinutesByDistance(origin, dest));
-    const lastDeparture = '23:50';
+    const lastDeparture = DEFAULT_LAST_DEPARTURE;
     return {
       lastDeparture,
       boardingStopName: '가까운 정류장',
@@ -147,11 +155,94 @@ export class LastTransitService {
     return Math.max(5, Math.round(d / 300));
   }
 
+  /**
+   * 지하철 역 시간표에서 해당 방향의 막차(가장 늦은) 출발 시각 "HH:mm"을 조회한다.
+   * 응답 구조가 다양할 수 있어, 시간표 객체에서 "HH:mm" 토큰만 모아 가장 늦은 값을 막차로 본다.
+   * 자정 이후 첫차(00:xx)보다 23:xx 가 크므로 max 가 막차에 해당한다.
+   */
+  private async getSubwayLastTrain(
+    stationID: number,
+    wayCode: number,
+    apiKey: string,
+  ): Promise<string | null> {
+    const params = new URLSearchParams({
+      apiKey,
+      stationID: String(stationID),
+      wayCode: String(wayCode),
+      dayType: String(this.todayDayType()),
+    });
+    try {
+      const res = await fetch(`${ODSAY_SUBWAY_TT_URL}?${params.toString()}`);
+      if (!res.ok) return null;
+      const json = (await res.json()) as {
+        result?: { OdsayTimeTable?: { fwd?: unknown; bwd?: unknown } };
+      };
+      const tt = json.result?.OdsayTimeTable;
+      if (!tt) return null;
+      const dir = wayCode === 2 ? tt.bwd : tt.fwd;
+      const times = collectHHMM(dir).concat(collectHHMM(tt.fwd), collectHHMM(tt.bwd));
+      if (times.length === 0) return null;
+      let maxMin = -1;
+      let best: string | null = null;
+      for (const t of times) {
+        const m = toMinutes(t);
+        if (m > maxMin) {
+          maxMin = m;
+          best = t;
+        }
+      }
+      return best;
+    } catch (error) {
+      this.logger.error(
+        'ODsay subway timetable error',
+        error instanceof Error ? error.stack : String(error),
+      );
+      return null;
+    }
+  }
+
+  /** KST 기준 요일 → ODsay dayType (1=평일, 2=토, 3=일/공휴일). */
+  private todayDayType(): number {
+    const kst = new Date(Date.now() + 9 * 60 * 60 * 1000);
+    const day = kst.getUTCDay(); // 0=일..6=토
+    if (day === 6) return 2;
+    if (day === 0) return 3;
+    return 1;
+  }
+
   private walkMinutesByDistance(origin: TransitPoint, dest: TransitPoint): number {
     const d = haversineM(origin.lat, origin.lng, dest.lat, dest.lng);
     // 정류장까지 도보는 보통 출발지 근처 → 전체 거리의 일부로 보수적 추정.
     return Math.max(3, Math.round(Math.min(d, 1000) / WALK_SPEED_M_PER_MIN));
   }
+}
+
+const HHMM_RE = /^([01]?\d|2[0-3]):[0-5]\d$/;
+
+/** 임의 객체에서 "HH:mm" 형태 문자열만 재귀적으로 수집. */
+function collectHHMM(value: unknown): string[] {
+  const out: string[] = [];
+  const walk = (v: unknown): void => {
+    if (v == null) return;
+    if (typeof v === 'string') {
+      if (HHMM_RE.test(v)) out.push(v);
+      return;
+    }
+    if (Array.isArray(v)) {
+      v.forEach(walk);
+      return;
+    }
+    if (typeof v === 'object') {
+      Object.values(v as Record<string, unknown>).forEach(walk);
+    }
+  };
+  walk(value);
+  return out;
+}
+
+function toMinutes(hhmm: string): number {
+  const [h, m] = hhmm.split(':').map((n) => parseInt(n, 10));
+  return h * 60 + m;
 }
 
 /** "HH:mm" 에서 분을 빼서 "HH:mm" 반환(24시간 랩어라운드). */
