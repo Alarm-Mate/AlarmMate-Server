@@ -75,7 +75,7 @@ describe('last-transit alarm', () => {
     return expectSuccess(res.body as ApiBody<AlarmView>).id;
   }
 
-  it('GET /places/search returns distance-sorted results', async () => {
+  it('GET /places/search returns relevant results with distance', async () => {
     const res = await request(server(h.app))
       .get('/places/search')
       .query({ q: 'CGV', lat: '35.1689', lng: '129.1316' })
@@ -83,9 +83,10 @@ describe('last-transit alarm', () => {
     expect(res.status).toBe(200);
     const places = expectSuccess(res.body as ApiBody<PlaceResult[]>);
     expect(places.length).toBeGreaterThan(0);
-    // 거리순 정렬 확인
-    for (let i = 1; i < places.length; i++) {
-      expect(places[i].distanceM).toBeGreaterThanOrEqual(places[i - 1].distanceM);
+    // 정확도순(관련성) 정렬: 검색어와 일치하는 결과가 포함되고, 거리값도 채워진다.
+    expect(places.some((p) => p.name.includes('CGV'))).toBe(true);
+    for (const p of places) {
+      expect(typeof p.distanceM).toBe('number');
     }
   });
 

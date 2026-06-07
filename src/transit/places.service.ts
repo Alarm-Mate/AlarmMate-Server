@@ -37,11 +37,13 @@ export class PlacesService {
       return this.mockSearch(q, lat, lng);
     }
 
-    const params = new URLSearchParams({ query: q, size: '12' });
+    // 정확도순(기본)으로 검색해야 검색어와 일치하는 장소가 상단에 온다.
+    // (거리순으로 하면 먼 정확한 결과가 가까운 부분일치에 밀려 안 보임)
+    const params = new URLSearchParams({ query: q, size: '15', sort: 'accuracy' });
     if (lat !== undefined && lng !== undefined) {
+      // x/y 는 거리(distance) 계산용으로만 전달(정렬은 정확도순 유지).
       params.set('x', String(lng));
       params.set('y', String(lat));
-      params.set('sort', 'distance');
     }
     try {
       const res = await fetch(`${KAKAO_KEYWORD_URL}?${params.toString()}`, {
