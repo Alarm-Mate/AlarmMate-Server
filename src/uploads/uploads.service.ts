@@ -24,6 +24,8 @@ const EXTENSION_BY_TYPE: Record<AllowedContentType, string> = {
   'image/jpeg': 'jpg',
   'image/png': 'png',
   'image/webp': 'webp',
+  'image/heic': 'heic',
+  'image/heif': 'heif',
 };
 
 const AUDIO_EXTENSION_BY_TYPE: Record<AllowedAudioContentType, string> = {
