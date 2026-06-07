@@ -75,6 +75,8 @@ export class LastTransitService {
               startName?: string;
               startID?: number; // ODsay 역 ID(지하철)
               wayCode?: number; // 방향 1/2
+              startX?: number; // 탑승지 경도
+              startY?: number; // 탑승지 위도
             }>;
           }>;
         };
@@ -84,8 +86,17 @@ export class LastTransitService {
 
       const firstWalk = first.subPath.find((s) => s.trafficType === 3);
       const firstTransit = first.subPath.find((s) => s.trafficType === 1 || s.trafficType === 2);
-      const walkMinutes = firstWalk?.sectionTime ?? this.walkMinutesByDistance(origin, dest);
       const boardingStopName = firstTransit?.startName ?? '가까운 정류장';
+      // 출발지 → 탑승역/정류장까지의 도보 시간을 반드시 포함한다.
+      // ODsay 도보 구간(sectionTime)과 좌표 기반(직선거리/도보속도) 중 큰 값을 사용.
+      const odsayWalk = firstWalk?.sectionTime ?? 0;
+      let coordWalk = 0;
+      if (firstTransit?.startX && firstTransit?.startY) {
+        const d = haversineM(origin.lat, origin.lng, firstTransit.startY, firstTransit.startX);
+        coordWalk = Math.max(1, Math.round(d / WALK_SPEED_M_PER_MIN));
+      }
+      let walkMinutes = Math.max(odsayWalk, coordWalk);
+      if (walkMinutes <= 0) walkMinutes = this.walkMinutesByDistance(origin, dest);
       // 첫 탑승이 지하철이면 해당 역 시간표로 실제 막차 시각을 조회. 실패 시 기본값.
       let lastDeparture = DEFAULT_LAST_DEPARTURE;
       if (firstTransit?.trafficType === 1 && firstTransit.startID) {
