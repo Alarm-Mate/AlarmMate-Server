@@ -632,8 +632,15 @@ export class GroupsService {
   ): Promise<{
     active: boolean;
     allWoke: boolean;
+    groupName: string;
     pendingMembers: Array<{ userId: string; nickname: string }>;
     wokeMembers: Array<{ userId: string; nickname: string; wokeAt: string }>;
+    members: Array<{
+      userId: string;
+      nickname: string;
+      profileImageUrl: string | null;
+      wokeAt: string | null;
+    }>;
   }> {
     const membership = await this.prisma.groupMember.findUnique({
       where: { groupId_userId: { groupId, userId } },
@@ -642,10 +649,15 @@ export class GroupsService {
       throw new AppException(ErrorCode.NOT_GROUP_MEMBER);
     }
 
+    const group = await this.prisma.group.findUnique({
+      where: { id: groupId },
+      select: { name: true },
+    });
+
     const members = await this.prisma.groupMember.findMany({
       where: { groupId },
       include: {
-        user: { select: { id: true, nickname: true } },
+        user: { select: { id: true, nickname: true, profileImageUrl: true } },
       },
     });
 
@@ -663,14 +675,27 @@ export class GroupsService {
       nickname: string;
       wokeAt: string;
     }> = [];
+    const memberStates: Array<{
+      userId: string;
+      nickname: string;
+      profileImageUrl: string | null;
+      wokeAt: string | null;
+    }> = [];
 
     for (const member of members) {
       const wokeAt = wakeMap.get(member.userId) ?? null;
-      if (wokeAt) {
+      const wokeAtIso = wokeAt ? wokeAt.toISOString() : null;
+      memberStates.push({
+        userId: member.userId,
+        nickname: member.user.nickname,
+        profileImageUrl: member.user.profileImageUrl ?? null,
+        wokeAt: wokeAtIso,
+      });
+      if (wokeAtIso) {
         wokeMembers.push({
           userId: member.userId,
           nickname: member.user.nickname,
-          wokeAt: wokeAt.toISOString(),
+          wokeAt: wokeAtIso,
         });
       } else {
         pendingMembers.push({
@@ -683,7 +708,14 @@ export class GroupsService {
     const allWoke = members.length > 0 && pendingMembers.length === 0;
     const active = membership.isEnabled && !allWoke;
 
-    return { active, allWoke, pendingMembers, wokeMembers };
+    return {
+      active,
+      allWoke,
+      groupName: group?.name ?? '그룹 알람',
+      pendingMembers,
+      wokeMembers,
+      members: memberStates,
+    };
   }
 
   async listInvitations(
