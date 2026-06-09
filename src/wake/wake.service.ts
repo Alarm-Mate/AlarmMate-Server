@@ -64,9 +64,12 @@ export class WakeService {
       data: { userId, alarmId: dto.alarmId, groupId, date, wokeAt },
     });
 
-    // 스트릭/총기상일은 저장 카운터가 아니라 실제 기상 날짜에서 계산(드리프트 없음).
+    // 스트릭/총기상일은 실제 기상 날짜에서 계산(막차/약속 리마인더는 제외).
     const allRecs = await this.prisma.wakeRecord.findMany({
-      where: { userId },
+      where: {
+        userId,
+        alarm: { type: { notIn: [AlarmType.LAST_TRANSIT, AlarmType.APPOINTMENT] } },
+      },
       select: { date: true },
     });
     const dates = new Set(allRecs.map((r) => r.date));

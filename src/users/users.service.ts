@@ -129,8 +129,12 @@ export class UsersService {
   private async wakeStats(
     userId: string,
   ): Promise<{ wakeStreak: number; totalWakeDays: number }> {
+    // 막차/약속 알람은 기상이 아니라 외출 리마인더이므로 스트릭·총기상일에서 제외.
     const recs = await this.prisma.wakeRecord.findMany({
-      where: { userId },
+      where: {
+        userId,
+        alarm: { type: { notIn: [AlarmType.LAST_TRANSIT, AlarmType.APPOINTMENT] } },
+      },
       select: { date: true },
     });
     const dates = new Set(recs.map((r) => r.date));
