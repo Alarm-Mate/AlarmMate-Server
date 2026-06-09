@@ -19,6 +19,7 @@ interface AlarmView {
   days: number[];
   isEnabled: boolean;
   vibration: boolean;
+  isOneTime: boolean;
   soundId: string | null;
   type: AlarmType;
   groupId: string | null;
@@ -161,6 +162,7 @@ export class AlarmsService {
         time: dto.time ?? null,
         days: dto.days ?? [],
         vibration: dto.vibration ?? true,
+        isOneTime: dto.isOneTime ?? false,
         soundId: dto.soundId ?? null,
         type,
         placeName: isLocation ? (dto.placeName ?? null) : null,
@@ -194,6 +196,7 @@ export class AlarmsService {
       ...(dto.days !== undefined ? { days: dto.days } : {}),
       ...(dto.isEnabled !== undefined ? { isEnabled: dto.isEnabled } : {}),
       ...(dto.vibration !== undefined ? { vibration: dto.vibration } : {}),
+      ...(dto.isOneTime !== undefined ? { isOneTime: dto.isOneTime } : {}),
       ...(dto.soundId !== undefined ? { soundId: dto.soundId } : {}),
       ...(dto.placeName !== undefined ? { placeName: dto.placeName } : {}),
       ...(dto.latitude !== undefined ? { latitude: dto.latitude } : {}),
@@ -258,6 +261,7 @@ export class AlarmsService {
       days: alarm.days,
       isEnabled: alarm.isEnabled,
       vibration: alarm.vibration,
+      isOneTime: alarm.isOneTime,
       soundId: alarm.soundId,
       type: alarm.type,
       groupId: alarm.groupId,

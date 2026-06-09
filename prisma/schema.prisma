@@ -78,6 +78,7 @@ model Alarm {
   days      Int[]
   isEnabled Boolean      @default(true)
   vibration Boolean      @default(true)
+  isOneTime Boolean      @default(false) // 1회성 알람(울린 뒤 자동 삭제)
   soundId   String?
   type      AlarmType    @default(PERSONAL)
   groupId   String?

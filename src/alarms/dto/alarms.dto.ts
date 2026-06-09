@@ -53,6 +53,10 @@ export class CreateAlarmDto {
   vibration?: boolean;
 
   @IsOptional()
+  @IsBoolean()
+  isOneTime?: boolean;
+
+  @IsOptional()
   @IsString()
   soundId?: string;
 
@@ -110,6 +114,10 @@ export class UpdateAlarmDto {
   @IsOptional()
   @IsBoolean()
   vibration?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  isOneTime?: boolean;
 
   @IsOptional()
   @IsString()
