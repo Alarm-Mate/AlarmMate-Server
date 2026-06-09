@@ -9,6 +9,7 @@ import {
   PaginatedResult,
 } from '../common/dto/cursor.dto';
 import {
+  currentStreakFromDates,
   getKstDayBoundsUtc,
   kstDateStringDaysAgo,
   toKstDateString,
@@ -124,6 +125,21 @@ export class UsersService {
     return { sent: true };
   }
 
+  // 스트릭/총기상일은 저장 카운터가 아니라 실제 기상 기록(날짜)에서 계산한다(드리프트 방지).
+  private async wakeStats(
+    userId: string,
+  ): Promise<{ wakeStreak: number; totalWakeDays: number }> {
+    const recs = await this.prisma.wakeRecord.findMany({
+      where: { userId },
+      select: { date: true },
+    });
+    const dates = new Set(recs.map((r) => r.date));
+    return {
+      wakeStreak: currentStreakFromDates(dates),
+      totalWakeDays: dates.size,
+    };
+  }
+
   async getMe(userId: string): Promise<MeProfile> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
@@ -131,6 +147,7 @@ export class UsersService {
     }
     const followerCount = await this.followsService.countFollowers(userId);
     const followingCount = await this.followsService.countFollowing(userId);
+    const { wakeStreak, totalWakeDays } = await this.wakeStats(userId);
 
     return {
       id: user.id,
@@ -142,8 +159,8 @@ export class UsersService {
       timezone: user.timezone,
       bio: user.bio,
       notificationsEnabled: user.notificationsEnabled,
-      wakeStreak: user.wakeStreak,
-      totalWakeDays: user.totalWakeDays,
+      wakeStreak,
+      totalWakeDays,
       oneSignalSubscriptionId: user.oneSignalSubscriptionId,
       followerCount,
       followingCount,
@@ -248,14 +265,15 @@ export class UsersService {
       targetUserId,
     );
     const grassData = await this.getGrass(targetUserId, 12);
+    const { wakeStreak, totalWakeDays } = await this.wakeStats(targetUserId);
 
     return {
       id: user.id,
       nickname: user.nickname,
       profileImageUrl: user.profileImageUrl,
       bio: user.bio,
-      wakeStreak: user.wakeStreak,
-      totalWakeDays: user.totalWakeDays,
+      wakeStreak,
+      totalWakeDays,
       followerCount,
       followingCount,
       isFollowing,

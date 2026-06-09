@@ -58,10 +58,26 @@ describe('users', () => {
   });
 
   it('GET /users/me returns counts and streak', async () => {
-    await h.prisma.user.update({
-      where: { id: alice.user.id },
-      data: { wakeStreak: 5, totalWakeDays: 12 },
-    });
+    // 스트릭/총기상일은 실제 WakeRecord(날짜)에서 계산된다.
+    // 오늘부터 5일 연속(streak 5) + 공백 후 과거 7일(총 12일).
+    const alarmRes = await request(server(h.app))
+      .post('/alarms')
+      .set('Authorization', `Bearer ${alice.accessToken}`)
+      .send({ name: 'A', time: '07:00', days: [1, 2, 3] });
+    const alarm = expectSuccess(alarmRes.body as ApiBody<{ id: string }>);
+    const kstDay = (n: number): string =>
+      new Date(Date.now() - n * 86400000 + 9 * 3600 * 1000).toISOString().slice(0, 10);
+    const offsets = [0, 1, 2, 3, 4, 10, 11, 12, 13, 14, 15, 16]; // 5 연속 + 7 공백후
+    for (const n of offsets) {
+      await h.prisma.wakeRecord.create({
+        data: {
+          userId: alice.user.id,
+          alarmId: alarm.id,
+          date: kstDay(n),
+          wokeAt: new Date(Date.now() - n * 86400000),
+        },
+      });
+    }
     await h.prisma.follow.create({
       data: { followerId: bob.user.id, followingId: alice.user.id },
     });

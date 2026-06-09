@@ -105,20 +105,18 @@ describe('wake', () => {
     );
   });
 
-  it('streak increments on consecutive day', async () => {
+  // 스트릭은 저장 카운터가 아니라 실제 기상 날짜(연속)에서 계산된다.
+  const dateStr = (n: number): string =>
+    new Date(kstNoonUtc(n).getTime() + 9 * 3600 * 1000).toISOString().slice(0, 10);
+
+  it('streak counts consecutive wake days', async () => {
     const alarm = await personalAlarm(h, alice.accessToken);
-    await h.prisma.wakeRecord.create({
-      data: {
-        userId: alice.user.id,
-        alarmId: alarm.id,
-        date: new Date(kstNoonUtc(1).getTime() + 9 * 3600 * 1000).toISOString().slice(0, 10),
-        wokeAt: kstNoonUtc(1),
-      },
-    });
-    await h.prisma.user.update({
-      where: { id: alice.user.id },
-      data: { wakeStreak: 3, totalWakeDays: 3 },
-    });
+    // 어제·그제·3일전 연속 기상 기록 → 오늘 기상하면 4일 연속.
+    for (const n of [3, 2, 1]) {
+      await h.prisma.wakeRecord.create({
+        data: { userId: alice.user.id, alarmId: alarm.id, date: dateStr(n), wokeAt: kstNoonUtc(n) },
+      });
+    }
     const res = await request(server(h.app))
       .post('/wake')
       .set('Authorization', `Bearer ${alice.accessToken}`)
@@ -128,19 +126,11 @@ describe('wake', () => {
     expect(data.totalWakeDays).toBe(4);
   });
 
-  it('streak resets after a gap', async () => {
+  it('streak resets after a gap (counts only the current run)', async () => {
     const alarm = await personalAlarm(h, alice.accessToken);
+    // 3일 전 기상 후 공백 → 오늘 기상하면 연속 스트릭은 1(단, 총 기상일은 2).
     await h.prisma.wakeRecord.create({
-      data: {
-        userId: alice.user.id,
-        alarmId: alarm.id,
-        date: new Date(kstNoonUtc(3).getTime() + 9 * 3600 * 1000).toISOString().slice(0, 10),
-        wokeAt: kstNoonUtc(3),
-      },
-    });
-    await h.prisma.user.update({
-      where: { id: alice.user.id },
-      data: { wakeStreak: 5, totalWakeDays: 5 },
+      data: { userId: alice.user.id, alarmId: alarm.id, date: dateStr(3), wokeAt: kstNoonUtc(3) },
     });
     const res = await request(server(h.app))
       .post('/wake')
@@ -148,7 +138,24 @@ describe('wake', () => {
       .send({ alarmId: alarm.id, wokeAt: kstNoonUtc(0).toISOString() });
     const data = expectSuccess(res.body as ApiBody<WakeResult>);
     expect(data.wakeStreak).toBe(1);
-    expect(data.totalWakeDays).toBe(6);
+    expect(data.totalWakeDays).toBe(2);
+  });
+
+  it('multiple alarms same day count as one wake day', async () => {
+    const a1 = await personalAlarm(h, alice.accessToken);
+    const a2 = await personalAlarm(h, alice.accessToken);
+    await request(server(h.app))
+      .post('/wake')
+      .set('Authorization', `Bearer ${alice.accessToken}`)
+      .send({ alarmId: a1.id, wokeAt: kstNoonUtc(0).toISOString() });
+    const res = await request(server(h.app))
+      .post('/wake')
+      .set('Authorization', `Bearer ${alice.accessToken}`)
+      .send({ alarmId: a2.id, wokeAt: kstNoonUtc(0).toISOString() });
+    const data = expectSuccess(res.body as ApiBody<WakeResult>);
+    // 같은 날 두 알람을 꺼도 스트릭/총일수는 1(하루 1회만 카운트).
+    expect(data.wakeStreak).toBe(1);
+    expect(data.totalWakeDays).toBe(1);
   });
 
   it('wake on non-owned alarm -> FORBIDDEN', async () => {

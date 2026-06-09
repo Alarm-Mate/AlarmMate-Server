@@ -45,3 +45,32 @@ export function kstDateStringDaysAgo(days: number, reference: Date = new Date())
 export function toKstDateString(date: Date): string {
   return formatInTimeZone(date, KST_TIMEZONE, 'yyyy-MM-dd');
 }
+
+/** "yyyy-MM-dd" 의 전날 문자열. */
+function prevDateString(d: string): string {
+  const [y, m, day] = d.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, day));
+  dt.setUTCDate(dt.getUTCDate() - 1);
+  return `${dt.getUTCFullYear()}-${String(dt.getUTCMonth() + 1).padStart(2, '0')}-${String(dt.getUTCDate()).padStart(2, '0')}`;
+}
+
+/**
+ * 기상한 KST 날짜 목록에서 "현재 연속 스트릭"을 계산한다(저장 카운터 대신 사실 기반).
+ * - 오늘 기상했으면 오늘부터, 아직이면 어제부터 거꾸로 연속된 날짜 수를 센다.
+ * - 오늘·어제 모두 없으면 0(끊김).
+ */
+export function currentStreakFromDates(
+  dateStrings: Iterable<string>,
+  today: string = getKstDateString(),
+): number {
+  const set = new Set(dateStrings);
+  if (set.size === 0) return 0;
+  let cursor = set.has(today) ? today : prevDateString(today);
+  if (!set.has(cursor)) return 0;
+  let streak = 0;
+  while (set.has(cursor)) {
+    streak++;
+    cursor = prevDateString(cursor);
+  }
+  return streak;
+}
