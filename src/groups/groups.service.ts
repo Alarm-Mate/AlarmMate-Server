@@ -10,6 +10,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AppException } from '../common/errors/app.exception';
 import { ErrorCode } from '../common/errors/error-code.enum';
 import { NotificationsService } from '../notifications/notifications.service';
+import { OneSignalService } from '../common/services/onesignal.service';
 import {
   getKstDateString,
   getKstDayBoundsUtc,
@@ -64,7 +65,31 @@ export class GroupsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
+    private readonly oneSignalService: OneSignalService,
   ) {}
+
+  // 그룹 초대 시 대상에게 사일런트 푸시 → 앱이 켜져 있으면 초대 목록을 즉시 갱신한다.
+  private async pushInvite(
+    targetUserId: string,
+    groupId: string,
+    groupName: string,
+  ): Promise<void> {
+    try {
+      const target = await this.prisma.user.findUnique({
+        where: { id: targetUserId },
+        select: { oneSignalSubscriptionId: true, notificationsEnabled: true },
+      });
+      const sub = target?.oneSignalSubscriptionId;
+      if (!target?.notificationsEnabled || !sub) return;
+      await this.oneSignalService.sendSilentPush([sub], {
+        type: NotificationType.GROUP_INVITE,
+        groupId,
+        groupName,
+      });
+    } catch {
+      /* 푸시 실패는 무시(목록 폴링으로 보강) */
+    }
+  }
 
   async listMyGroups(userId: string): Promise<GroupView[]> {
     const memberships = await this.prisma.groupMember.findMany({
@@ -261,6 +286,14 @@ export class GroupsService {
       return created;
     });
 
+    // 초대받은 멤버들에게 즉시 갱신용 사일런트 푸시(앱 켜져 있으면 초대 목록 바로 반영).
+    const inviteTargets = Array.from(
+      new Set((dto.memberUserIds ?? []).filter((id) => id !== userId)),
+    );
+    void Promise.all(
+      inviteTargets.map((t) => this.pushInvite(t, group.id, group.name)),
+    );
+
     return this.getGroup(userId, group.id);
   }
 
@@ -373,6 +406,7 @@ export class GroupsService {
         fromNickname: inviter?.nickname ?? '',
       },
     );
+    await this.pushInvite(targetUserId, groupId, group?.name ?? '');
 
     return { invited: true };
   }

@@ -4,8 +4,9 @@ import { ConfigService } from '@nestjs/config';
 export interface SilentPushData {
   type: string;
   groupId: string;
-  userId: string;
-  wokeAt: string;
+  userId?: string;
+  wokeAt?: string;
+  groupName?: string;
 }
 
 const ONESIGNAL_ENDPOINT = 'https://onesignal.com/api/v1/notifications';

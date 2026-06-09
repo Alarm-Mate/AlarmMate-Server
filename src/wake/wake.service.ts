@@ -56,6 +56,11 @@ export class WakeService {
     const groupId = alarm.type === AlarmType.GROUP ? alarm.groupId : null;
 
     const wokeYesterday = await this.wokeOnPreviousKstDay(userId, wokeAt);
+    // 오늘 이미 다른 알람으로 기상한 적이 있으면 스트릭/총일수는 다시 올리지 않는다(하루 1회).
+    const { start: todayStart, end: todayEnd } = getKstDayBoundsUtc(wokeAt);
+    const wokeEarlierToday = await this.prisma.wakeRecord.findFirst({
+      where: { userId, wokeAt: { gte: todayStart, lte: todayEnd } },
+    });
 
     // 날짜별로 항상 새 기록을 남겨 과거 기상 이력을 보존한다.
     const record = await this.prisma.wakeRecord.create({
@@ -65,6 +70,7 @@ export class WakeService {
     const { wakeStreak, totalWakeDays } = await this.updateStreak(
       userId,
       wokeYesterday,
+      wokeEarlierToday !== null,
     );
 
     let allMembersWoke = false;
@@ -88,10 +94,16 @@ export class WakeService {
   private async updateStreak(
     userId: string,
     wokeYesterday: boolean,
+    alreadyWokeToday: boolean,
   ): Promise<{ wakeStreak: number; totalWakeDays: number }> {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
       throw new AppException(ErrorCode.USER_NOT_FOUND);
+    }
+
+    // 오늘 이미 기상 처리됨(다른 알람) → 스트릭·총일수 변동 없음(하루 1회만 카운트).
+    if (alreadyWokeToday) {
+      return { wakeStreak: user.wakeStreak, totalWakeDays: user.totalWakeDays };
     }
 
     const nextStreak = wokeYesterday ? user.wakeStreak + 1 : 1;
