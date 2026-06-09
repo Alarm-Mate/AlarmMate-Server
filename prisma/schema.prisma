@@ -214,13 +214,14 @@ model Follow {
 model WakeRecord {
   id        String   @id @default(cuid())
   userId    String
-  alarmId   String
+  // 알람이 삭제되어도(일회성/약속/막차 자동 삭제) 기상 이력은 보존해야 하므로 SetNull(nullable).
+  alarmId   String?
   groupId   String?
   date      String // KST yyyy-MM-dd (하루 1건, 날짜별 이력 보존)
   wokeAt    DateTime
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  alarm     Alarm    @relation(fields: [alarmId], references: [id], onDelete: Cascade)
+  alarm     Alarm?   @relation(fields: [alarmId], references: [id], onDelete: SetNull)
   group     Group?   @relation(fields: [groupId], references: [id])
 
   @@unique([userId, alarmId, date])

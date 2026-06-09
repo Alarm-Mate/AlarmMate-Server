@@ -64,11 +64,14 @@ export class WakeService {
       data: { userId, alarmId: dto.alarmId, groupId, date, wokeAt },
     });
 
-    // 스트릭/총기상일은 실제 기상 날짜에서 계산(막차/약속 리마인더는 제외).
+    // 스트릭/총기상일은 실제 기상 날짜에서 계산(막차/약속 제외, 삭제된 일회성 orphan 기록은 유지).
     const allRecs = await this.prisma.wakeRecord.findMany({
       where: {
         userId,
-        alarm: { type: { notIn: [AlarmType.LAST_TRANSIT, AlarmType.APPOINTMENT] } },
+        OR: [
+          { alarmId: null },
+          { alarm: { type: { notIn: [AlarmType.LAST_TRANSIT, AlarmType.APPOINTMENT] } } },
+        ],
       },
       select: { date: true },
     });
@@ -90,7 +93,7 @@ export class WakeService {
 
     return {
       id: record.id,
-      alarmId: record.alarmId,
+      alarmId: record.alarmId ?? dto.alarmId,
       groupId: record.groupId,
       wokeAt: record.wokeAt.toISOString(),
       wakeStreak,

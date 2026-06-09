@@ -129,11 +129,14 @@ export class UsersService {
   private async wakeStats(
     userId: string,
   ): Promise<{ wakeStreak: number; totalWakeDays: number }> {
-    // 막차/약속 알람은 기상이 아니라 외출 리마인더이므로 스트릭·총기상일에서 제외.
+    // 막차/약속은 제외. 단 삭제된 일회성 알람의 기록(alarm=null, orphan)은 기상으로 유지.
     const recs = await this.prisma.wakeRecord.findMany({
       where: {
         userId,
-        alarm: { type: { notIn: [AlarmType.LAST_TRANSIT, AlarmType.APPOINTMENT] } },
+        OR: [
+          { alarmId: null },
+          { alarm: { type: { notIn: [AlarmType.LAST_TRANSIT, AlarmType.APPOINTMENT] } } },
+        ],
       },
       select: { date: true },
     });
