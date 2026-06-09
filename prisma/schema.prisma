@@ -128,6 +128,7 @@ model Group {
   name        String
   alarmTime   String
   days        Int[]
+  isOneTime   Boolean           @default(false) // 1회성 그룹(울린 뒤 그룹 전체 자동 삭제)
   createdAt   DateTime          @default(now())
   updatedAt   DateTime          @updatedAt
   members     GroupMember[]
@@ -223,7 +224,8 @@ model WakeRecord {
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   alarm     Alarm?   @relation(fields: [alarmId], references: [id], onDelete: SetNull)
-  group     Group?   @relation(fields: [groupId], references: [id])
+  // 그룹 삭제(1회성 그룹 자동 삭제 등)돼도 기상 이력은 프로필에 남도록 SetNull.
+  group     Group?   @relation(fields: [groupId], references: [id], onDelete: SetNull)
 
   @@unique([userId, alarmId, date])
 }

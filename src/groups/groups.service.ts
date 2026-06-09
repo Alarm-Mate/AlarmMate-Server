@@ -224,6 +224,7 @@ export class GroupsService {
           name: dto.name,
           alarmTime: dto.alarmTime,
           days: dto.days,
+          isOneTime: dto.isOneTime ?? false,
         },
       });
 
@@ -242,6 +243,7 @@ export class GroupsService {
           time: created.alarmTime,
           days: created.days,
           type: AlarmType.GROUP,
+          isOneTime: created.isOneTime,
           groupId: created.id,
         },
       });
@@ -447,6 +449,7 @@ export class GroupsService {
           time: group.alarmTime,
           days: group.days,
           type: AlarmType.GROUP,
+          isOneTime: group.isOneTime,
           groupId,
         },
       });

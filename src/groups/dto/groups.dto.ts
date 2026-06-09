@@ -34,6 +34,10 @@ export class CreateGroupDto {
   @IsArray()
   @IsString({ each: true })
   memberUserIds?: string[];
+
+  @IsOptional()
+  @IsBoolean()
+  isOneTime?: boolean;
 }
 
 export class UpdateGroupDto {
