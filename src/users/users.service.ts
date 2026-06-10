@@ -57,7 +57,10 @@ interface MeProfile {
 interface GrassEntry {
   date: string;
   woke: boolean;
+  /** 그날 최초 기상 시각 ISO */
   wokeAt: string | null;
+  /** 그날 모든 기상 시각 ISO(시간순) — 알람 여러 개를 끈 날은 여러 개 */
+  wokeAts: string[];
 }
 
 interface PublicProfile {
@@ -367,23 +370,27 @@ export class UsersService {
       select: { wokeAt: true },
     });
 
-    const wokeByDate = new Map<string, Date>();
+    // 날짜별 모든 기상 시각(시간순). 첫 항목이 최초 기상.
+    const wokeByDate = new Map<string, Date[]>();
     for (const record of records) {
       const key = toKstDateString(record.wokeAt);
-      const existing = wokeByDate.get(key);
-      if (!existing || record.wokeAt.getTime() < existing.getTime()) {
-        wokeByDate.set(key, record.wokeAt);
-      }
+      const list = wokeByDate.get(key) ?? [];
+      list.push(record.wokeAt);
+      wokeByDate.set(key, list);
+    }
+    for (const list of wokeByDate.values()) {
+      list.sort((a, b) => a.getTime() - b.getTime());
     }
 
     const entries: GrassEntry[] = [];
     for (let i = totalDays - 1; i >= 0; i -= 1) {
       const dateString = kstDateStringDaysAgo(i);
-      const wokeAt = wokeByDate.get(dateString);
+      const wokeAts = wokeByDate.get(dateString) ?? [];
       entries.push({
         date: dateString,
-        woke: wokeAt !== undefined,
-        wokeAt: wokeAt ? wokeAt.toISOString() : null,
+        woke: wokeAts.length > 0,
+        wokeAt: wokeAts.length > 0 ? wokeAts[0].toISOString() : null,
+        wokeAts: wokeAts.map((d) => d.toISOString()),
       });
     }
     return entries;
