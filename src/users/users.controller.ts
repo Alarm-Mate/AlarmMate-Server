@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query } from '@nestjs/common';
 import { UsersService } from './users.service';
 import {
   AuthUser,
@@ -7,6 +7,7 @@ import {
 import { DEFAULT_PAGE_LIMIT } from '../common/dto/cursor.dto';
 import {
   GrassQueryDto,
+  ReportUserDto,
   SearchUsersDto,
   SendReactionDto,
   UpdateMeDto,
@@ -76,6 +77,27 @@ export class UsersController {
     @Body() dto: SendReactionDto,
   ) {
     return this.usersService.sendReaction(user.userId, userId, dto);
+  }
+
+  // UGC 보호: 사용자 차단(양방향 팔로우 해제 + 검색/탐색 상호 숨김)
+  @Post(':userId/block')
+  block(@CurrentUser() user: AuthUser, @Param('userId') userId: string) {
+    return this.usersService.blockUser(user.userId, userId);
+  }
+
+  @Delete(':userId/block')
+  unblock(@CurrentUser() user: AuthUser, @Param('userId') userId: string) {
+    return this.usersService.unblockUser(user.userId, userId);
+  }
+
+  // UGC 보호: 사용자 신고(운영 검토용 저장)
+  @Post(':userId/report')
+  report(
+    @CurrentUser() user: AuthUser,
+    @Param('userId') userId: string,
+    @Body() dto: ReportUserDto,
+  ) {
+    return this.usersService.reportUser(user.userId, userId, dto.reason);
   }
 
   @Get(':userId')

@@ -34,6 +34,33 @@ model User {
   receivedInvitations     GroupInvitation[] @relation("InvitedUser")
   passwordResetTokens     PasswordResetToken[]
   sounds                  Sound[]
+  blocksMade              UserBlock[]      @relation("Blocker")
+  blocksReceived          UserBlock[]      @relation("Blocked")
+  reportsMade             UserReport[]     @relation("Reporter")
+  reportsReceived         UserReport[]     @relation("Reported")
+}
+
+// UGC 보호: 사용자 차단. 차단하면 양방향 팔로우 해제 + 검색/탐색에서 상호 숨김.
+model UserBlock {
+  id        String   @id @default(cuid())
+  blockerId String
+  blockedId String
+  createdAt DateTime @default(now())
+  blocker   User     @relation("Blocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked   User     @relation("Blocked", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+}
+
+// UGC 신고 접수(운영 검토용 보관)
+model UserReport {
+  id         String   @id @default(cuid())
+  reporterId String
+  targetId   String
+  reason     String
+  createdAt  DateTime @default(now())
+  reporter   User     @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  target     User     @relation("Reported", fields: [targetId], references: [id], onDelete: Cascade)
 }
 
 model RefreshToken {

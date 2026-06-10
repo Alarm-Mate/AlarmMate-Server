@@ -18,9 +18,10 @@ import { SoundsModule } from './sounds/sounds.module';
 import { RingModule } from './ring/ring.module';
 import { TransitModule } from './transit/transit.module';
 import { HealthController } from './health.controller';
+import { LegalController } from './legal.controller';
 
 @Module({
-  controllers: [HealthController],
+  controllers: [HealthController, LegalController],
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     ScheduleModule.forRoot(),

@@ -1,13 +1,17 @@
 import 'reflect-metadata';
+import { join } from 'path';
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { ConfigService } from '@nestjs/config';
+import type { NestExpressApplication } from '@nestjs/platform-express';
 import { AppModule } from './app.module';
 import { ResponseInterceptor } from './common/interceptors/response.interceptor';
 import { AllExceptionsFilter } from './common/filters/all-exceptions.filter';
 
 async function bootstrap(): Promise<void> {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  // 기본 알람음 등 정적 파일(/public/...) 서빙
+  app.useStaticAssets(join(process.cwd(), 'public'), { prefix: '/public' });
 
   app.useGlobalPipes(
     new ValidationPipe({

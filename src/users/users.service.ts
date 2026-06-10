@@ -73,6 +73,8 @@ interface PublicProfile {
   followerCount: number;
   followingCount: number;
   isFollowing: boolean;
+  /** 내가 이 유저를 차단했는지 */
+  isBlocked: boolean;
   grassData: GrassEntry[];
 }
 
@@ -93,6 +95,68 @@ export class UsersService {
   ) {}
 
   // 메이트에게 이모지 리액션 전송: 인앱 알림 생성 + (가능 시) 푸시.
+  // ── UGC 보호: 차단/신고 ─────────────────────────────────
+  /** 내가 차단했거나 나를 차단한 유저 id 집합(검색/탐색 상호 숨김용). */
+  async getBlockedIdSet(userId: string): Promise<Set<string>> {
+    const rows = await this.prisma.userBlock.findMany({
+      where: { OR: [{ blockerId: userId }, { blockedId: userId }] },
+      select: { blockerId: true, blockedId: true },
+    });
+    const set = new Set<string>();
+    for (const r of rows) {
+      set.add(r.blockerId === userId ? r.blockedId : r.blockerId);
+    }
+    return set;
+  }
+
+  async blockUser(blockerId: string, blockedId: string): Promise<{ blocked: boolean }> {
+    if (blockerId === blockedId) {
+      throw new AppException(ErrorCode.VALIDATION_ERROR, '자신은 차단할 수 없어요.');
+    }
+    const target = await this.prisma.user.findUnique({ where: { id: blockedId } });
+    if (!target) {
+      throw new AppException(ErrorCode.USER_NOT_FOUND);
+    }
+    await this.prisma.$transaction([
+      this.prisma.userBlock.upsert({
+        where: { blockerId_blockedId: { blockerId, blockedId } },
+        create: { blockerId, blockedId },
+        update: {},
+      }),
+      // 양방향 팔로우 해제 → 피드/메이트/팔로워 목록에서 즉시 사라진다.
+      this.prisma.follow.deleteMany({
+        where: {
+          OR: [
+            { followerId: blockerId, followingId: blockedId },
+            { followerId: blockedId, followingId: blockerId },
+          ],
+        },
+      }),
+    ]);
+    return { blocked: true };
+  }
+
+  async unblockUser(blockerId: string, blockedId: string): Promise<{ blocked: boolean }> {
+    await this.prisma.userBlock.deleteMany({ where: { blockerId, blockedId } });
+    return { blocked: false };
+  }
+
+  async reportUser(
+    reporterId: string,
+    targetId: string,
+    reason: string,
+  ): Promise<{ reported: boolean }> {
+    if (reporterId === targetId) {
+      throw new AppException(ErrorCode.VALIDATION_ERROR, '자신은 신고할 수 없어요.');
+    }
+    const target = await this.prisma.user.findUnique({ where: { id: targetId } });
+    if (!target) {
+      throw new AppException(ErrorCode.USER_NOT_FOUND);
+    }
+    await this.prisma.userReport.create({ data: { reporterId, targetId, reason } });
+    return { reported: true };
+  }
+
   async sendReaction(
     fromUserId: string,
     targetUserId: string,
@@ -107,6 +171,18 @@ export class UsersService {
     ]);
     if (!target || !sender) {
       throw new AppException(ErrorCode.USER_NOT_FOUND);
+    }
+    // 차단 관계(양방향)면 리액션 차단
+    const blockedRel = await this.prisma.userBlock.findFirst({
+      where: {
+        OR: [
+          { blockerId: fromUserId, blockedId: targetUserId },
+          { blockerId: targetUserId, blockedId: fromUserId },
+        ],
+      },
+    });
+    if (blockedRel) {
+      throw new AppException(ErrorCode.VALIDATION_ERROR, '리액션을 보낼 수 없는 상대예요.');
     }
 
     await this.notificationsService.create(targetUserId, NotificationType.REACTION, {
@@ -227,10 +303,12 @@ export class UsersService {
     cursor: string | undefined,
     limit: number = DEFAULT_PAGE_LIMIT,
   ): Promise<PaginatedResult<SearchUserView>> {
+    const blocked = await this.getBlockedIdSet(viewerId);
     const rows = await this.prisma.user.findMany({
       where: {
         nickname: { contains: nickname, mode: 'insensitive' },
-        id: { not: viewerId },
+        // 차단 관계(양방향)는 검색에서 상호 숨김
+        id: { not: viewerId, notIn: [...blocked] },
       },
       orderBy: { id: 'desc' },
       take: limit + 1,
@@ -276,6 +354,9 @@ export class UsersService {
     );
     const grassData = await this.getGrass(targetUserId, 12);
     const { wakeStreak, totalWakeDays } = await this.wakeStats(targetUserId);
+    const blockedByMe = await this.prisma.userBlock.findFirst({
+      where: { blockerId: viewerId, blockedId: targetUserId },
+    });
 
     return {
       id: user.id,
@@ -287,6 +368,7 @@ export class UsersService {
       followerCount,
       followingCount,
       isFollowing,
+      isBlocked: blockedByMe !== null,
       grassData,
     };
   }
@@ -321,8 +403,9 @@ export class UsersService {
 
   // 소셜 탐색: 최근 가입 유저들 + 각자의 개인 알람 + 오늘 기상 여부 + 내 팔로우 여부.
   async getDiscover(viewerId: string, limit = 20): Promise<DiscoverUser[]> {
+    const blocked = await this.getBlockedIdSet(viewerId);
     const users = await this.prisma.user.findMany({
-      where: { id: { not: viewerId } },
+      where: { id: { not: viewerId, notIn: [...blocked] } },
       orderBy: { createdAt: 'desc' },
       take: limit,
       select: {

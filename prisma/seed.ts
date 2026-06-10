@@ -2,10 +2,11 @@ import { PrismaClient } from '@prisma/client';
 
 const prisma = new PrismaClient();
 
+// 기본 알람음은 백엔드 정적 파일(/public/sounds)에서 서빙된다.
+const PUBLIC_BASE_URL =
+  process.env.PUBLIC_BASE_URL ?? 'https://alarmmate-server-production.up.railway.app';
 const DEFAULT_SOUNDS = [
-  { name: '알람 시계 1', url: 'https://cdn.alarmmate.app/sounds/default-1.mp3' },
-  { name: '알람 시계 2', url: 'https://cdn.alarmmate.app/sounds/default-2.mp3' },
-  { name: '알람 시계 3', url: 'https://cdn.alarmmate.app/sounds/default-3.mp3' },
+  { name: '알람 시계', url: `${PUBLIC_BASE_URL}/public/sounds/default-alarm.wav` },
 ];
 
 async function main(): Promise<void> {

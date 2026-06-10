@@ -84,3 +84,10 @@ export class GrassQueryDto {
   @Max(52)
   weeks?: number;
 }
+
+export class ReportUserDto {
+  @IsString()
+  @MinLength(1)
+  @MaxLength(500)
+  reason!: string;
+}
