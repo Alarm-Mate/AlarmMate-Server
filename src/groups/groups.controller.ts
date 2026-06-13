@@ -20,6 +20,7 @@ import {
   CursorOnlyDto,
   InviteDto,
   MemberSettingsDto,
+  ToggleMemberDto,
   TransferOwnerDto,
   UpdateGroupDto,
   WakeStatusQueryDto,
@@ -112,8 +113,12 @@ export class GroupsController {
   }
 
   @Patch(':groupId/toggle')
-  toggle(@CurrentUser() user: AuthUser, @Param('groupId') groupId: string) {
-    return this.groupsService.toggleMember(user.userId, groupId);
+  toggle(
+    @CurrentUser() user: AuthUser,
+    @Param('groupId') groupId: string,
+    @Body() dto: ToggleMemberDto,
+  ) {
+    return this.groupsService.toggleMember(user.userId, groupId, dto.isEnabled);
   }
 
   @Patch(':groupId/owner')

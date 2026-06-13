@@ -532,9 +532,12 @@ export class GroupsService {
     return { removed: true };
   }
 
+  // isEnabled를 명시적으로 지정(set)한다. 미지정 시에만 기존 값을 반전(하위호환).
+  // 클라이언트가 보낸 값을 무시하고 무조건 반전하면 연타·이중 진입점에서 의도와 반대로 뒤집힌다.
   async toggleMember(
     userId: string,
     groupId: string,
+    isEnabled?: boolean,
   ): Promise<{ isEnabled: boolean }> {
     const membership = await this.prisma.groupMember.findUnique({
       where: { groupId_userId: { groupId, userId } },
@@ -542,9 +545,10 @@ export class GroupsService {
     if (!membership) {
       throw new AppException(ErrorCode.NOT_GROUP_MEMBER);
     }
+    const next = isEnabled ?? !membership.isEnabled;
     const updated = await this.prisma.groupMember.update({
       where: { groupId_userId: { groupId, userId } },
-      data: { isEnabled: !membership.isEnabled },
+      data: { isEnabled: next },
     });
     return { isEnabled: updated.isEnabled };
   }

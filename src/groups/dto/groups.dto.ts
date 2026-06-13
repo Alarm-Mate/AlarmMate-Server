@@ -98,3 +98,9 @@ export class MemberSettingsDto {
   @IsString()
   soundId?: string;
 }
+
+export class ToggleMemberDto {
+  @IsOptional()
+  @IsBoolean()
+  isEnabled?: boolean;
+}
