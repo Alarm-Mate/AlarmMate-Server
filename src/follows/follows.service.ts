@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AppException } from '../common/errors/app.exception';
 import { ErrorCode } from '../common/errors/error-code.enum';
 import { NotificationsService } from '../notifications/notifications.service';
+import { OneSignalService } from '../common/services/onesignal.service';
 import {
   buildPaginatedResult,
   DEFAULT_PAGE_LIMIT,
@@ -22,6 +23,7 @@ export class FollowsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly notificationsService: NotificationsService,
+    private readonly oneSignalService: OneSignalService,
   ) {}
 
   async follow(
@@ -34,8 +36,22 @@ export class FollowsService {
 
     const target = await this.prisma.user.findUnique({
       where: { id: followingId },
+      select: { id: true, oneSignalSubscriptionId: true, notificationsEnabled: true },
     });
     if (!target) {
+      throw new AppException(ErrorCode.USER_NOT_FOUND);
+    }
+
+    // 차단 관계(양방향)면 팔로우 불가 — 차단 우회 방지.
+    const blocked = await this.prisma.userBlock.findFirst({
+      where: {
+        OR: [
+          { blockerId: followerId, blockedId: followingId },
+          { blockerId: followingId, blockedId: followerId },
+        ],
+      },
+    });
+    if (blocked) {
       throw new AppException(ErrorCode.USER_NOT_FOUND);
     }
 
@@ -57,6 +73,15 @@ export class FollowsService {
       NotificationType.NEW_FOLLOWER,
       { followerId, followerNickname: follower?.nickname ?? '' },
     );
+    // 새 팔로워 배너 푸시(알림함만 쌓이고 푸시가 안 가던 문제 보완).
+    if (target.notificationsEnabled && target.oneSignalSubscriptionId) {
+      await this.oneSignalService.sendNotification(
+        [target.oneSignalSubscriptionId],
+        '새 팔로워',
+        `${follower?.nickname ?? '누군가'}님이 회원님을 팔로우했어요`,
+        { type: NotificationType.NEW_FOLLOWER, followerId },
+      );
+    }
 
     return { following: true };
   }

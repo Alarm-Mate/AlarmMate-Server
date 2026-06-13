@@ -151,6 +151,8 @@ export class OneSignalService {
           Authorization: authorization,
         },
         body: JSON.stringify(body),
+        // 외부 장애 시 요청이 무한정 대기하지 않도록 10초 타임아웃.
+        signal: AbortSignal.timeout(10000),
       });
       if (!response.ok) {
         this.logger.error(

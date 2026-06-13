@@ -48,6 +48,7 @@ export class PlacesService {
     try {
       const res = await fetch(`${KAKAO_KEYWORD_URL}?${params.toString()}`, {
         headers: { Authorization: `KakaoAK ${apiKey}` },
+        signal: AbortSignal.timeout(8000),
       });
       if (!res.ok) {
         this.logger.error(`Kakao search failed: ${res.status}`);

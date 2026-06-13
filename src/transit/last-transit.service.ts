@@ -61,7 +61,7 @@ export class LastTransitService {
       OPT: '0',
     });
     try {
-      const res = await fetch(`${ODSAY_PATH_URL}?${params.toString()}`);
+      const res = await fetch(`${ODSAY_PATH_URL}?${params.toString()}`, { signal: AbortSignal.timeout(8000) });
       if (!res.ok) {
         this.logger.error(`ODsay failed: ${res.status}`);
         return null;
@@ -146,7 +146,7 @@ export class LastTransitService {
         OPT: '0',
       });
       try {
-        const res = await fetch(`${ODSAY_PATH_URL}?${params.toString()}`);
+        const res = await fetch(`${ODSAY_PATH_URL}?${params.toString()}`, { signal: AbortSignal.timeout(8000) });
         if (res.ok) {
           const json = (await res.json()) as {
             result?: { path?: Array<{ info?: { totalTime?: number } }> };
@@ -183,7 +183,7 @@ export class LastTransitService {
       dayType: String(this.todayDayType()),
     });
     try {
-      const res = await fetch(`${ODSAY_SUBWAY_TT_URL}?${params.toString()}`);
+      const res = await fetch(`${ODSAY_SUBWAY_TT_URL}?${params.toString()}`, { signal: AbortSignal.timeout(8000) });
       if (!res.ok) return null;
       const json = (await res.json()) as {
         result?: { OdsayTimeTable?: { fwd?: unknown; bwd?: unknown } };

@@ -70,14 +70,18 @@ export class MailService {
     });
   }
 
-  // 가입 축하 메일
+  // 가입 축하 메일(비핵심 — 실패해도 가입 흐름을 막지 않도록 내부에서 삼킨다)
   async sendWelcomeEmail(to: string, nickname: string): Promise<void> {
-    await this.send({
-      to,
-      subject: 'AlarmMate에 오신 걸 환영합니다',
-      text: `${nickname}님, 환영합니다.\n메이트와 함께 일어나는 습관, 알람메이트와 시작해봐요.`,
-      html: this.welcomeEmail(nickname),
-    });
+    try {
+      await this.send({
+        to,
+        subject: 'AlarmMate에 오신 걸 환영합니다',
+        text: `${nickname}님, 환영합니다.\n메이트와 함께 일어나는 습관, 알람메이트와 시작해봐요.`,
+        html: this.welcomeEmail(nickname),
+      });
+    } catch (error) {
+      this.logger.warn(`환영 메일 발송 실패(무시): ${String(error)}`);
+    }
   }
 
   // ── 이메일 템플릿 ─────────────────────────────────────────────
@@ -185,6 +189,11 @@ export class MailService {
     const from = this.configService.get<string>('MAIL_FROM');
 
     if (!this.isReal(apiKey) || !this.isReal(from)) {
+      // 운영(production)에서 메일 미설정은 가입/재설정을 조용히 막으므로 명시적으로 실패시킨다.
+      if (process.env.NODE_ENV === 'production') {
+        this.logger.error('Mail provider not configured in production');
+        throw new Error('MAIL_NOT_CONFIGURED');
+      }
       this.logger.warn(
         `Mail provider not configured; logging instead. to=${options.to} subject="${options.subject}" body="${options.text}"`,
       );
@@ -206,23 +215,19 @@ export class MailService {
       content,
     };
 
-    try {
-      const res = await fetch(SENDGRID_ENDPOINT, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
-        },
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) {
-        this.logger.error(`SendGrid mail failed: status ${res.status}`);
-      }
-    } catch (error) {
-      this.logger.error(
-        'SendGrid request error',
-        error instanceof Error ? error.stack : String(error),
-      );
+    const res = await fetch(SENDGRID_ENDPOINT, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(10000),
+    });
+    if (!res.ok) {
+      // 핵심 경로(인증/재설정 코드)에서 발송 실패를 호출자에게 전파 → 사용자에게 명확한 에러.
+      this.logger.error(`SendGrid mail failed: status ${res.status}`);
+      throw new Error(`MAIL_SEND_FAILED_${res.status}`);
     }
   }
 

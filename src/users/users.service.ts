@@ -192,7 +192,7 @@ export class UsersService {
       kind: dto.kind ?? null,
     });
 
-    if (target.oneSignalSubscriptionId) {
+    if (target.notificationsEnabled && target.oneSignalSubscriptionId) {
       await this.oneSignalService.sendNotification(
         [target.oneSignalSubscriptionId],
         '알람메이트',
@@ -344,6 +344,14 @@ export class UsersService {
     if (!user) {
       throw new AppException(ErrorCode.USER_NOT_FOUND);
     }
+    // 상대가 나를 차단했으면 프로필을 숨긴다(존재하지 않는 것처럼). 내가 상대를 차단한 경우는
+    // 차단 해제 UI를 위해 정상 반환(isBlocked=true).
+    const blockedByTarget = await this.prisma.userBlock.findFirst({
+      where: { blockerId: targetUserId, blockedId: viewerId },
+    });
+    if (blockedByTarget) {
+      throw new AppException(ErrorCode.USER_NOT_FOUND);
+    }
 
     const followerCount = await this.followsService.countFollowers(targetUserId);
     const followingCount =
@@ -374,11 +382,18 @@ export class UsersService {
   }
 
   // 메이트 알람 공유: 대상 유저의 알람 목록 + 오늘(KST) 기상 여부.
-  async getUserAlarms(targetUserId: string): Promise<MateAlarmView[]> {
+  async getUserAlarms(viewerId: string, targetUserId: string): Promise<MateAlarmView[]> {
     const user = await this.prisma.user.findUnique({
       where: { id: targetUserId },
     });
     if (!user) {
+      throw new AppException(ErrorCode.USER_NOT_FOUND);
+    }
+    // 상대가 나를 차단했으면 알람 목록도 숨긴다.
+    const blockedByTarget = await this.prisma.userBlock.findFirst({
+      where: { blockerId: targetUserId, blockedId: viewerId },
+    });
+    if (blockedByTarget) {
       throw new AppException(ErrorCode.USER_NOT_FOUND);
     }
     const alarms = await this.prisma.alarm.findMany({

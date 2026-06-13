@@ -77,6 +77,7 @@ model EmailVerification {
   email     String
   code      String
   verified  Boolean  @default(false)
+  attempts  Int      @default(0) // 코드 오입력 횟수(무차별 대입 방지)
   expiresAt DateTime
   createdAt DateTime @default(now())
 
@@ -89,6 +90,7 @@ model PasswordResetToken {
   userId    String
   expiresAt DateTime
   used      Boolean  @default(false)
+  attempts  Int      @default(0) // 코드 오입력 횟수(무차별 대입 방지)
   createdAt DateTime @default(now())
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
@@ -217,8 +219,9 @@ model GroupInvitation {
   expiresAt   DateTime
   createdAt   DateTime         @default(now())
   group       Group            @relation(fields: [groupId], references: [id], onDelete: Cascade)
-  invitedBy   User             @relation("InvitedBy", fields: [invitedById], references: [id])
-  user        User             @relation("InvitedUser", fields: [userId], references: [id])
+  // 초대를 보낸/받은 유저가 탈퇴해도 회원 삭제가 막히지 않도록 Cascade(초대 이력 함께 삭제).
+  invitedBy   User             @relation("InvitedBy", fields: [invitedById], references: [id], onDelete: Cascade)
+  user        User             @relation("InvitedUser", fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([groupId, userId])
 }

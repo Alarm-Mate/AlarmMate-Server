@@ -65,8 +65,8 @@ export class UsersController {
 
   // 메이트 알람 공유: 대상 유저의 알람 목록 + 오늘 기상 여부
   @Get(':userId/alarms')
-  userAlarms(@Param('userId') userId: string) {
-    return this.usersService.getUserAlarms(userId);
+  userAlarms(@CurrentUser() user: AuthUser, @Param('userId') userId: string) {
+    return this.usersService.getUserAlarms(user.userId, userId);
   }
 
   // 메이트에게 이모지 리액션 전송

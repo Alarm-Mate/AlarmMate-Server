@@ -33,6 +33,8 @@ const REFRESH_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const RESET_TTL_MS = 10 * 60 * 1000;
 // 인증/재설정 코드 재발송 최소 간격(스팸·무차별 대입 완화).
 const CODE_COOLDOWN_MS = 60 * 1000;
+// 6자리 코드 오입력 허용 횟수(초과 시 코드 폐기 → 재발송 필요).
+const MAX_CODE_ATTEMPTS = 5;
 
 @Injectable()
 export class AuthService {
@@ -110,21 +112,39 @@ export class AuthService {
     await this.prisma.emailVerification.create({
       data: { email, code, expiresAt: new Date(Date.now() + RESET_TTL_MS) },
     });
-    await this.mailService.sendVerificationCode(email, code);
+    try {
+      await this.mailService.sendVerificationCode(email, code);
+    } catch {
+      // 발송 실패 시 코드 정리 + 명확한 에러(가입 차단 원인불명 방지).
+      await this.prisma.emailVerification.deleteMany({ where: { email } });
+      throw new AppException(ErrorCode.MAIL_SEND_FAILED);
+    }
     return { requested: true };
   }
 
-  // 코드 확인 → 인증 완료 표시
+  // 코드 확인 → 인증 완료 표시. 무차별 대입 방지: 같은 이메일의 최신 코드에 오입력 5회 누적 시 폐기.
   async verifyEmailCode(email: string, code: string): Promise<{ verified: boolean }> {
-    const record = await this.prisma.emailVerification.findFirst({
-      where: { email, code, expiresAt: { gt: new Date() } },
+    const latest = await this.prisma.emailVerification.findFirst({
+      where: { email, verified: false, expiresAt: { gt: new Date() } },
       orderBy: { createdAt: 'desc' },
     });
-    if (!record) {
+    if (!latest) {
+      throw new AppException(ErrorCode.INVALID_VERIFICATION_CODE);
+    }
+    if (latest.attempts >= MAX_CODE_ATTEMPTS) {
+      // 시도 횟수 초과 → 코드 폐기(재발송 필요)
+      await this.prisma.emailVerification.delete({ where: { id: latest.id } });
+      throw new AppException(ErrorCode.INVALID_VERIFICATION_CODE);
+    }
+    if (latest.code !== code) {
+      await this.prisma.emailVerification.update({
+        where: { id: latest.id },
+        data: { attempts: { increment: 1 } },
+      });
       throw new AppException(ErrorCode.INVALID_VERIFICATION_CODE);
     }
     await this.prisma.emailVerification.update({
-      where: { id: record.id },
+      where: { id: latest.id },
       data: { verified: true },
     });
     return { verified: true };
@@ -210,7 +230,12 @@ export class AuthService {
           expiresAt: new Date(Date.now() + RESET_TTL_MS),
         },
       });
-      await this.mailService.sendPasswordResetCode(user.email, code);
+      try {
+        await this.mailService.sendPasswordResetCode(user.email, code);
+      } catch {
+        await this.prisma.passwordResetToken.deleteMany({ where: { userId: user.id } });
+        throw new AppException(ErrorCode.MAIL_SEND_FAILED);
+      }
     }
     return { requested: true };
   }
@@ -220,13 +245,29 @@ export class AuthService {
     if (!user) {
       throw new AppException(ErrorCode.INVALID_RESET_TOKEN);
     }
-    const record = await this.prisma.passwordResetToken.findFirst({
-      where: { userId: user.id, token: dto.code, used: false },
+    // 무차별 대입 방지: 최신 미사용 코드 기준으로 오입력 5회 누적 시 폐기.
+    const latest = await this.prisma.passwordResetToken.findFirst({
+      where: { userId: user.id, used: false },
       orderBy: { createdAt: 'desc' },
     });
-    if (!record || record.expiresAt.getTime() < Date.now()) {
+    if (!latest || latest.expiresAt.getTime() < Date.now()) {
       throw new AppException(ErrorCode.INVALID_RESET_TOKEN);
     }
+    if (latest.attempts >= MAX_CODE_ATTEMPTS) {
+      await this.prisma.passwordResetToken.update({
+        where: { id: latest.id },
+        data: { used: true },
+      });
+      throw new AppException(ErrorCode.INVALID_RESET_TOKEN);
+    }
+    if (latest.token !== dto.code) {
+      await this.prisma.passwordResetToken.update({
+        where: { id: latest.id },
+        data: { attempts: { increment: 1 } },
+      });
+      throw new AppException(ErrorCode.INVALID_RESET_TOKEN);
+    }
+    const record = latest;
     if (!PASSWORD_REGEX.test(dto.newPassword)) {
       throw new AppException(ErrorCode.INVALID_PASSWORD_FORMAT);
     }
@@ -248,6 +289,29 @@ export class AuthService {
   }
 
   async withdraw(userId: string): Promise<{ success: boolean }> {
+    // 내가 OWNER인 그룹 처리: 다른 멤버가 있으면 가장 오래된 멤버에게 소유권 이전,
+    // 혼자면 그룹 삭제. (오너 탈퇴 후 그룹이 관리 불능 고아가 되는 것 방지)
+    const ownedMemberships = await this.prisma.groupMember.findMany({
+      where: { userId, role: 'OWNER' },
+      select: { groupId: true },
+    });
+    for (const { groupId } of ownedMemberships) {
+      const nextOwner = await this.prisma.groupMember.findFirst({
+        where: { groupId, userId: { not: userId } },
+        orderBy: { joinedAt: 'asc' },
+        select: { id: true },
+      });
+      if (nextOwner) {
+        await this.prisma.groupMember.update({
+          where: { id: nextOwner.id },
+          data: { role: 'OWNER' },
+        });
+      } else {
+        // 남은 멤버 없음 → 그룹 삭제(멤버·알람·초대 등 Cascade 정리)
+        await this.prisma.group.delete({ where: { id: groupId } });
+      }
+    }
+    // GroupInvitation FK가 Cascade이므로 user 삭제가 초대 이력 때문에 막히지 않는다.
     await this.prisma.user.delete({ where: { id: userId } });
     return { success: true };
   }

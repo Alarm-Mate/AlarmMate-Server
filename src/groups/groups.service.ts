@@ -68,7 +68,7 @@ export class GroupsService {
     private readonly oneSignalService: OneSignalService,
   ) {}
 
-  // 그룹 초대 시 대상에게 사일런트 푸시 → 앱이 켜져 있으면 초대 목록을 즉시 갱신한다.
+  // 그룹 초대 시 대상에게 배너 푸시 → 초대가 왔음을 즉시 알리고, data로 앱이 켜져 있으면 목록 갱신.
   private async pushInvite(
     targetUserId: string,
     groupId: string,
@@ -81,11 +81,12 @@ export class GroupsService {
       });
       const sub = target?.oneSignalSubscriptionId;
       if (!target?.notificationsEnabled || !sub) return;
-      await this.oneSignalService.sendSilentPush([sub], {
-        type: NotificationType.GROUP_INVITE,
-        groupId,
-        groupName,
-      });
+      await this.oneSignalService.sendNotification(
+        [sub],
+        '그룹 알람 초대',
+        `${groupName} 그룹에 초대받았어요`,
+        { type: NotificationType.GROUP_INVITE, groupId, groupName },
+      );
     } catch {
       /* 푸시 실패는 무시(목록 폴링으로 보강) */
     }

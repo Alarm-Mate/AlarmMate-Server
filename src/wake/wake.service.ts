@@ -171,6 +171,17 @@ export class WakeService {
           payload,
         })),
       );
+      // 전원 기상 배너 푸시(알림 허용 멤버 전원). 알림함에만 쌓이고 푸시가 안 가던 문제 보완.
+      const allWokeSubs = members
+        .filter((m) => m.user.notificationsEnabled)
+        .map((m) => m.user.oneSignalSubscriptionId)
+        .filter((id): id is string => typeof id === 'string' && id.length > 0);
+      await this.oneSignalService.sendNotification(
+        allWokeSubs,
+        group?.name ?? '그룹 알람',
+        '그룹원 모두가 일어났어요!',
+        { type: NotificationType.ALL_MEMBERS_WOKE_UP, groupId },
+      );
     }
 
     return allMembersWoke;
