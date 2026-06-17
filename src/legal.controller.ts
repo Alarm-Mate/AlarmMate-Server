@@ -66,11 +66,50 @@ const PRIVACY_HTML = `<!DOCTYPE html>
 </body>
 </html>`;
 
+// App Store "지원 URL" 용 간단한 지원/문의 페이지.
+const SUPPORT_HTML = `<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>알람메이트 지원</title>
+<style>
+  body { font-family: -apple-system, "Apple SD Gothic Neo", sans-serif; line-height: 1.7; max-width: 640px; margin: 0 auto; padding: 32px 20px 64px; color: #1c1c2e; }
+  h1 { font-size: 24px; } h2 { font-size: 18px; margin-top: 28px; }
+  a { color: #2b6cff; }
+  .card { background: #f4f4fa; border-radius: 14px; padding: 18px 20px; margin-top: 16px; }
+</style>
+</head>
+<body>
+<h1>알람메이트 지원</h1>
+<p>함께 일어나는 습관, 알람메이트를 이용해 주셔서 감사합니다. 문의·버그 제보·계정 관련 도움이 필요하시면 아래로 연락해 주세요.</p>
+
+<div class="card">
+  <h2>문의</h2>
+  <p>이메일: <a href="mailto:${CONTACT_EMAIL}">${CONTACT_EMAIL}</a><br/>영업일 기준 48시간 이내에 답변드립니다.</p>
+</div>
+
+<h2>자주 묻는 질문</h2>
+<p><strong>알람이 울리지 않아요.</strong><br/>설정 → 알림에서 알람·알림 권한이 허용되어 있는지 확인해 주세요. 알람메이트는 iOS 26 이상에서 동작합니다.</p>
+<p><strong>계정을 삭제하고 싶어요.</strong><br/>앱 내 설정 → 계정 → 회원 탈퇴에서 직접 계정과 데이터를 삭제할 수 있습니다.</p>
+<p><strong>막차·약속 알람이 이상한 시각에 울려요.</strong><br/>위치 권한이 필요합니다(이동 시간 계산용). 설정에서 위치 권한을 허용하고 다시 설정해 주세요.</p>
+
+<h2>개인정보</h2>
+<p><a href="/privacy">개인정보처리방침 보기</a></p>
+</body>
+</html>`;
+
 @Controller()
 export class LegalController {
   @Public()
   @Get('privacy')
   privacy(@Res() res: Response): void {
     res.type('text/html; charset=utf-8').send(PRIVACY_HTML);
+  }
+
+  @Public()
+  @Get('support')
+  support(@Res() res: Response): void {
+    res.type('text/html; charset=utf-8').send(SUPPORT_HTML);
   }
 }
